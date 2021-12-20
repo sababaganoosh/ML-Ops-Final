@@ -1,5 +1,4 @@
 # ML-Ops-Final
-final project
 
 ## Proposed Model Functionality:   
 ### Slice Creation:   
