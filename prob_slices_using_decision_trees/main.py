@@ -189,15 +189,13 @@ def extract_discrete_columns_from_data(data, threshold=20):
     return discrete_columns
 
 
-def generate_synthetic_data_from_slice(x_data, y_data, samples_to_generate_percent, dataset_label_column_name, num_epochs=10, discrete_columns=None):
+def generate_synthetic_data_from_slice(x_data, y_data, num_samples_to_generate, dataset_label_column_name, num_epochs=10, discrete_columns=None):
 
     print("Training CTGAN on problematic slice")
 
     df_cp = x_data.copy(deep=True)
     y_df_cp = y_data.copy(deep=True)
     df_cp[dataset_label_column_name] = y_df_cp
-
-    num_samples_to_generate = int(len(df_cp) * samples_to_generate_percent)
 
     if discrete_columns is None:
         discrete_columns = extract_discrete_columns_from_data(df_cp)
@@ -234,6 +232,7 @@ def main_code():
     synthetic_samples_to_generate_percent = config["synthetic_samples_to_generate_percent"]
     ctgan_num_epochs = config["ctgan_num_epochs"]
     metric_to_use_name = config["metric_to_use_name"]
+    should_generate_data_from_both_labels = config["should_generate_data_from_both_labels"]
 
     if metric_to_use_name == "f1":
         metric_to_use = metrics.f1_score
@@ -332,12 +331,27 @@ def main_code():
         (x_train_filtered_df, y_train_filtered_df) = filter_df_by_prob_label(x_train_prob_slice, y_train_prob_slice, problematic_label, dataset_label_column_name)
         print("Filtered the problematic slice from the train dataframe")
 
-        (samples_x, samples_y) = generate_synthetic_data_from_slice(x_train_filtered_df, y_train_filtered_df, synthetic_samples_to_generate_percent, dataset_label_column_name, ctgan_num_epochs)
+        num_samples_to_generate = int(len(x_train_filtered_df) * synthetic_samples_to_generate_percent)
+        
+        (samples_x, samples_y) = generate_synthetic_data_from_slice(x_train_filtered_df, y_train_filtered_df, num_samples_to_generate, dataset_label_column_name, ctgan_num_epochs)
         print("Generated new samples from the problematic slice")
 
         X_train_raw = X_train_raw.append(samples_x)
         y_train = y_train.append(samples_y)
-        print("Added new samples to the train dataframe, going back...")
+        print("Added new samples to the train dataframe")
+
+        if should_generate_data_from_both_labels:
+            (x_train_other_filtered_df, y_train_other_filtered_df) = filter_df_by_prob_label(x_train_prob_slice, y_train_prob_slice, abs(1 - problematic_label), dataset_label_column_name)
+            print("Filtered the other label of the dataframe")
+
+            (samples_x_other, samples_y_other) = generate_synthetic_data_from_slice(x_train_other_filtered_df, y_train_other_filtered_df, num_samples_to_generate, dataset_label_column_name, ctgan_num_epochs)
+            print("Generated new samples from the other slice")
+
+            X_train_raw = X_train_raw.append(samples_x_other)
+            y_train = y_train.append(samples_y_other)
+            print("Added new samples to the train dataframe from the other label")
+        
+        print("going back...")
 
     print("Finished all iterations, printing final models results:")
 
