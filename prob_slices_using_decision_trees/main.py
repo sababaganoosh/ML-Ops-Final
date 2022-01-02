@@ -4,7 +4,6 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn import metrics
 from sklearn.tree import DecisionTreeClassifier
-from sklearn import metrics
 
 # data synthesizing
 from ctgan import CTGANSynthesizer
@@ -13,12 +12,13 @@ import xgboost as xgb
 from sklearn.tree import _tree
 from xgboost import XGBClassifier
 import warnings
+import json
 
-def get_categorical_features(data):
+def get_categorical_features(data, dataset_label_column_name):
     cat_feats = []
     for i, col in enumerate(data.dtypes):
         if np.issubdtype(col, np.integer) == False and np.issubdtype(col, np.floating) == False:
-            if data.columns[i] == 'y':
+            if data.columns[i] == dataset_label_column_name:
                 pass
             else:
                 cat_feats.append(data.columns[i])
@@ -94,20 +94,21 @@ def get_dataframes_from_slices_by_tree(two_deep_tree, x_val_df, y_val_df):
             ((x_df4, y_df4), df4_filter_desc)]
 
 
-def get_acc_of_df(x_val_df, y_val_df, xgbModel):
+def get_acc_of_df(x_val_df, y_val_df, xgbModel, metric_to_use):
     x_val_dmat = xgb.DMatrix(x_val_df)
 
     y_predict = xgbModel.predict(x_val_dmat)
 
     y_predict_assignment = np.argmax(y_predict, 1).reshape([-1, 1])
-    val_acc = np.sum(y_predict_assignment == np.array(y_val_df)) / len(y_predict)
+    val_acc = metric_to_use(y_val_df, y_predict_assignment)
+
     return val_acc
 
 
-def get_acc_of_each_slice(slices_dataframes, xgbModel):
+def get_acc_of_each_slice(slices_dataframes, xgbModel, metric_to_use):
     slices_with_acc = []
     for i in range(len(slices_dataframes)):
-        acc_of_curr_slice = get_acc_of_df(slices_dataframes[i][0][0], slices_dataframes[i][0][1], xgbModel)
+        acc_of_curr_slice = get_acc_of_df(slices_dataframes[i][0][0], slices_dataframes[i][0][1], xgbModel, metric_to_use)
         slices_with_acc.append((slices_dataframes[i], acc_of_curr_slice))
         print(f"Accuracy of slice #{i+1} is: {acc_of_curr_slice}")
     return slices_with_acc
@@ -165,8 +166,8 @@ def get_train_df_of_problematic_slice(x_train_raw_df, x_train_df, y_train_df, pr
     return (x_train_prob_slice, y_train_prob_slice)
 
 
-def filter_df_by_prob_label(x_train_prob_slice, y_train_prob_slice, problematic_label):
-    df_filter = y_train_prob_slice['y'] == problematic_label
+def filter_df_by_prob_label(x_train_prob_slice, y_train_prob_slice, problematic_label, dataset_label_column_name):
+    df_filter = y_train_prob_slice[dataset_label_column_name] == problematic_label
 
     x_train_filtered_df = x_train_prob_slice[df_filter]
     y_train_filtered_df = y_train_prob_slice[df_filter]
@@ -188,13 +189,13 @@ def extract_discrete_columns_from_data(data, threshold=20):
     return discrete_columns
 
 
-def generate_synthetic_data_from_slice(x_data, y_data, samples_to_generate_percent, num_epochs=10, discrete_columns=None):
+def generate_synthetic_data_from_slice(x_data, y_data, samples_to_generate_percent, dataset_label_column_name, num_epochs=10, discrete_columns=None):
 
     print("Training CTGAN on problematic slice")
 
     df_cp = x_data.copy(deep=True)
     y_df_cp = y_data.copy(deep=True)
-    df_cp['y'] = y_df_cp
+    df_cp[dataset_label_column_name] = y_df_cp
 
     num_samples_to_generate = int(len(df_cp) * samples_to_generate_percent)
 
@@ -208,18 +209,40 @@ def generate_synthetic_data_from_slice(x_data, y_data, samples_to_generate_perce
 
     print(f"Generated {num_samples_to_generate} new samples for the problematic slice")
 
-    samples_y = pd.DataFrame(samples['y'])
-    samples_x = samples.drop(['y'], axis=1)
+    samples_y = pd.DataFrame(samples[dataset_label_column_name])
+    samples_x = samples.drop([dataset_label_column_name], axis=1)
 
     return (samples_x, samples_y)
 
 def main_code():
+
+    with open('config.json', 'r') as f:
+        config = json.load(f)
+    
+    print("Loaded config.json:")
+    print(config)
+    
     # splitting dataset
-    val_size = .15
-    test_size = .15
+    val_size = config["validation_size"]
+    test_size = config["test_size"]
     train_size = 1 - val_size - test_size
-    max_iterations = 3
-    dataset_path = "./datasets/bank-full.csv"
+    min_support = config["min_support"]
+    max_iterations = config["max_iterations"]
+    dataset_path = config["dataset_path"]
+    dataset_label_column_name = config["dataset_label_column_name"]
+    problematic_label = config["problematic_label"]
+    synthetic_samples_to_generate_percent = config["synthetic_samples_to_generate_percent"]
+    ctgan_num_epochs = config["ctgan_num_epochs"]
+    metric_to_use_name = config["metric_to_use_name"]
+
+    if metric_to_use_name == "f1":
+        metric_to_use = metrics.f1_score
+    elif metric_to_use_name == "recall":
+        metric_to_use = metrics.recall_score
+    elif metric_to_use_name == "precision":
+        metric_to_use = metrics.precision_score
+    else: # default to accuracy
+        metric_to_use = metrics.accuracy_score
 
     print("Starting...")
 
@@ -228,11 +251,11 @@ def main_code():
     print("Completed Dataset Loading")
 
     # Since y is a class variable we will have to convert it into binary format. (Since 2 unique class values)
-    data.y.replace(('yes', 'no'), (1, 0), inplace=True)
+    data[dataset_label_column_name].replace(('yes', 'no'), (1, 0), inplace=True)
 
     # Spliting data as X -> features and y -> class variable
-    data_y = pd.DataFrame(data['y'])
-    data_X = data.drop(['y'], axis=1)
+    data_y = pd.DataFrame(data[dataset_label_column_name])
+    data_X = data.drop([dataset_label_column_name], axis=1)
 
     # Dividing records in training validation and testing sets along with its shape (rows, cols)
     X_train, X_test_raw, y_train, y_test = \
@@ -243,7 +266,7 @@ def main_code():
                          stratify=y_train)
     print("Split train/test/val")
 
-    cat_feats = get_categorical_features(data)
+    cat_feats = get_categorical_features(data, dataset_label_column_name)
 
     X_val = pd.get_dummies(X_val_raw, columns=cat_feats)
     X_test = pd.get_dummies(X_test_raw, columns=cat_feats)
@@ -264,7 +287,8 @@ def main_code():
         print("Fit XGBClassifier")
 
         y_pred = clf.predict(X_val)
-        print(f'Regular Baseline Model Accuracy: {metrics.accuracy_score(y_val, y_pred)}')
+        print(f'Regular Baseline Model Classification Report:')
+        print(metrics.classification_report(y_val, y_pred))
 
         dtrain = xgb.DMatrix(X_train, label=y_train)
         dtest = xgb.DMatrix(X_val)
@@ -286,7 +310,8 @@ def main_code():
         y_predict = XGB_Model.predict(dtest)
 
         y_predict_assignment = np.argmax(y_predict, 1).reshape([-1, 1])
-        print(f'Boosted Baseline Model Accuracy: {metrics.accuracy_score(y_val, y_predict_assignment)}')
+        print(f'Boosted Baseline Model Classification Report:')
+        print(metrics.classification_report(y_val, y_predict_assignment))
 
         dtc = create_tree_for_slices(X_val, y_val, XGB_Model)
         print("Created Decision Tree Classifier for finding problematic slices")
@@ -294,20 +319,20 @@ def main_code():
         slices_dataframes = get_dataframes_from_slices_by_tree(dtc, X_val, y_val)
         print("Extracted the slices by the tree leaves")
 
-        slices_with_accuracy = get_acc_of_each_slice(slices_dataframes, XGB_Model)
+        slices_with_accuracy = get_acc_of_each_slice(slices_dataframes, XGB_Model, metric_to_use)
         print("Calculated accuracy of each slice")
 
-        problematic_slice = get_most_problematic_slice(slices_with_accuracy, val_df_len / 100)
+        problematic_slice = get_most_problematic_slice(slices_with_accuracy, val_df_len * min_support)
         print("Chose the most problematic slice")
 
         (x_train_prob_slice, y_train_prob_slice) = get_train_df_of_problematic_slice(X_train_raw, X_train, y_train,
                                                                                      problematic_slice)
         print("Extracted the problematic slice from the train dataframe")
 
-        (x_train_filtered_df, y_train_filtered_df) = filter_df_by_prob_label(x_train_prob_slice, y_train_prob_slice, 1)
+        (x_train_filtered_df, y_train_filtered_df) = filter_df_by_prob_label(x_train_prob_slice, y_train_prob_slice, problematic_label, dataset_label_column_name)
         print("Filtered the problematic slice from the train dataframe")
 
-        (samples_x, samples_y) = generate_synthetic_data_from_slice(x_train_filtered_df, y_train_filtered_df, 0.5)
+        (samples_x, samples_y) = generate_synthetic_data_from_slice(x_train_filtered_df, y_train_filtered_df, synthetic_samples_to_generate_percent, dataset_label_column_name, ctgan_num_epochs)
         print("Generated new samples from the problematic slice")
 
         X_train_raw = X_train_raw.append(samples_x)
@@ -324,7 +349,8 @@ def main_code():
     clf.fit(X_train, y_train)
 
     y_pred = clf.predict(X_val)
-    print(f'Regular Baseline Model Accuracy: {metrics.accuracy_score(y_val, y_pred)}')
+    print(f'Regular Baseline Model Classification Report:')
+    print(metrics.classification_report(y_val, y_pred))
 
     dtrain = xgb.DMatrix(X_train, label=y_train)
     dtest = xgb.DMatrix(X_val)
@@ -345,7 +371,8 @@ def main_code():
     y_predict = XGB_Model.predict(dtest)
 
     y_predict_assignment = np.argmax(y_predict, 1).reshape([-1, 1])
-    print(f'Regular Baseline Model Accuracy: {metrics.accuracy_score(y_val, y_predict_assignment)}')
+    print(f'Boosted Baseline Model Classification Report:')
+    print(metrics.classification_report(y_val, y_predict_assignment))
 
     XGB_Model.dump_model('dump.rawBank.txt')
     print("Dumped the model into file, exiting...")
