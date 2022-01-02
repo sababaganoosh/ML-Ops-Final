@@ -1,13 +1,13 @@
 {
     "validation_size": 0.15,
     "test_size": 0.15,
-    "min_support": 0.01,
-    "max_iterations": 5,
+    "min_support": 0.05,
+    "iterations": 5,
     "dataset_path": "./datasets/bank-full.csv",
     "dataset_label_column_name": "y",
     "problematic_label": 1,
     "synthetic_samples_to_generate_percent": 0.5,
 	"ctgan_num_epochs": 10,
 	"metric_to_use_name": "f1",
-    "should_generate_data_from_both_labels": true 
+    "should_generate_data_from_both_labels": false 
 }

@@ -11,6 +11,7 @@ from ctgan import CTGANSynthesizer
 import xgboost as xgb
 from sklearn.tree import _tree
 from xgboost import XGBClassifier
+import pickle
 import warnings
 import json
 
@@ -28,11 +29,8 @@ def get_categorical_features(data, dataset_label_column_name):
 
 
 def create_tree_for_slices(x_val_df, y_val_df, xgbModel):
-    x_val_dmat = xgb.DMatrix(x_val_df)
-    y_predict = xgbModel.predict(x_val_dmat)
-
-    preds_assignment = np.argmax(y_predict, 1).reshape([-1, 1])
-    is_correct = (preds_assignment == np.array(y_val_df)) * 1
+    y_predict = xgbModel.predict(x_val_df)
+    is_correct = (np.array(y_predict) == np.array(y_val_df)) * 1
     dtc_labels = pd.DataFrame(is_correct)
 
     dtc = DecisionTreeClassifier(max_depth=2)
@@ -95,12 +93,8 @@ def get_dataframes_from_slices_by_tree(two_deep_tree, x_val_df, y_val_df):
 
 
 def get_acc_of_df(x_val_df, y_val_df, xgbModel, metric_to_use):
-    x_val_dmat = xgb.DMatrix(x_val_df)
-
-    y_predict = xgbModel.predict(x_val_dmat)
-
-    y_predict_assignment = np.argmax(y_predict, 1).reshape([-1, 1])
-    val_acc = metric_to_use(y_val_df, y_predict_assignment)
+    y_predict = xgbModel.predict(x_val_df)
+    val_acc = metric_to_use(y_val_df, y_predict)
 
     return val_acc
 
@@ -225,7 +219,7 @@ def main_code():
     test_size = config["test_size"]
     train_size = 1 - val_size - test_size
     min_support = config["min_support"]
-    max_iterations = config["max_iterations"]
+    iterations = config["iterations"]
     dataset_path = config["dataset_path"]
     dataset_label_column_name = config["dataset_label_column_name"]
     problematic_label = config["problematic_label"]
@@ -274,7 +268,9 @@ def main_code():
 
     print("Done preprocessing")
 
-    for i in range(max_iterations):
+    best_model_acc = 0
+
+    for i in range(iterations):
         print(f'Starting iteration #{i+1}')
 
         X_train = pd.get_dummies(X_train_raw, columns=cat_feats)
@@ -285,40 +281,26 @@ def main_code():
         clf.fit(X_train, y_train)
         print("Fit XGBClassifier")
 
-        y_pred = clf.predict(X_val)
-        print(f'Regular Baseline Model Classification Report:')
-        print(metrics.classification_report(y_val, y_pred))
+        y_pred_val = clf.predict(X_val)
+        y_pred_test = clf.predict(X_test)
+        print(f'Regular Baseline Model Classification Report On Validation Dataset:')
+        print(metrics.classification_report(y_val, y_pred_val, digits=4))
 
-        dtrain = xgb.DMatrix(X_train, label=y_train)
-        dtest = xgb.DMatrix(X_val)
+        print(f'Regular Baseline Model Classification Report On Test Dataset:')
+        print(metrics.classification_report(y_test, y_pred_test, digits=4))
 
-        # Train the model
-        params = {
-            'objective': 'multi:softprob',
-            'max_dept': 4,
-            'silent': 1,
-            'eta': 0.3,
-            'gamma': 0,
-            'num_class': 2
-        }
-        num_rounds = 20
+        curr_acc = metric_to_use(y_test, y_pred_test)
+        if curr_acc > best_model_acc:
+            best_model = clf
+            best_model_acc = curr_acc
 
-        XGB_Model = xgb.train(params, dtrain, num_rounds)
-        print("Fit XGB_Model")
-
-        y_predict = XGB_Model.predict(dtest)
-
-        y_predict_assignment = np.argmax(y_predict, 1).reshape([-1, 1])
-        print(f'Boosted Baseline Model Classification Report:')
-        print(metrics.classification_report(y_val, y_predict_assignment))
-
-        dtc = create_tree_for_slices(X_val, y_val, XGB_Model)
+        dtc = create_tree_for_slices(X_val, y_val, clf)
         print("Created Decision Tree Classifier for finding problematic slices")
 
         slices_dataframes = get_dataframes_from_slices_by_tree(dtc, X_val, y_val)
         print("Extracted the slices by the tree leaves")
 
-        slices_with_accuracy = get_acc_of_each_slice(slices_dataframes, XGB_Model, metric_to_use)
+        slices_with_accuracy = get_acc_of_each_slice(slices_dataframes, clf, metric_to_use)
         print("Calculated accuracy of each slice")
 
         problematic_slice = get_most_problematic_slice(slices_with_accuracy, val_df_len * min_support)
@@ -361,35 +343,24 @@ def main_code():
     clf = XGBClassifier()
 
     clf.fit(X_train, y_train)
+    print("Fit XGBClassifier")
 
-    y_pred = clf.predict(X_val)
-    print(f'Regular Baseline Model Classification Report:')
-    print(metrics.classification_report(y_val, y_pred))
+    y_pred_val = clf.predict(X_val)
+    y_pred_test = clf.predict(X_test)
+    print(f'Regular Baseline Model Classification Report On Validation Dataset:')
+    print(metrics.classification_report(y_val, y_pred_val, digits=4))
 
-    dtrain = xgb.DMatrix(X_train, label=y_train)
-    dtest = xgb.DMatrix(X_val)
+    print(f'Regular Baseline Model Classification Report On Test Dataset:')
+    print(metrics.classification_report(y_test, y_pred_test, digits=4))
 
-    # Train the model
-    params = {
-        'objective': 'multi:softprob',
-        'max_dept': 4,
-        'silent': 1,
-        'eta': 0.3,
-        'gamma': 0,
-        'num_class': 2
-    }
-    num_rounds = 20
+    curr_acc = metric_to_use(y_test, y_pred_test)
+    if curr_acc > best_model_acc:
+        best_model = clf
+        best_model_acc = curr_acc
 
-    XGB_Model = xgb.train(params, dtrain, num_rounds)
-
-    y_predict = XGB_Model.predict(dtest)
-
-    y_predict_assignment = np.argmax(y_predict, 1).reshape([-1, 1])
-    print(f'Boosted Baseline Model Classification Report:')
-    print(metrics.classification_report(y_val, y_predict_assignment))
-
-    XGB_Model.dump_model('dump.rawBank.txt')
-    print("Dumped the model into file, exiting...")
+    # save model to file
+    pickle.dump(best_model, open("best_model.pickle.dat", "wb"))
+    print("Dumped the best model into file, exiting...")
 
 
 if __name__ == "__main__":
