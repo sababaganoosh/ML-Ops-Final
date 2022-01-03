@@ -115,22 +115,24 @@ def get_acc_of_each_slice(slices_dataframes, xgbModel, metric_to_use):
 def get_most_problematic_slice(slices_with_accuracy, min_size_threshold, accuracy_threshold):
     worst_slice_score = 0
     worst_slice_index = -1
+    print(f"Min size threshold: {min_size_threshold}")
 
     for i in range(len(slices_with_accuracy)):
         current_slice = slices_with_accuracy[i]
         accuracy_of_slice = current_slice[1]
         size_of_slice = len(current_slice[0][0][0])
+        print(f"Slice #{i+1}, Accuracy of {accuracy_of_slice} and size of {size_of_slice}")
         if size_of_slice < min_size_threshold:
             continue
-        if accuracy_of_slice > accuracy_threshold:
-            continue
+        #if accuracy_of_slice > accuracy_threshold:
+        #    continue
 
         slice_score = 1 / (accuracy_of_slice)
 
         if slice_score > worst_slice_score:
             worst_slice_index = i
             worst_slice_score = slice_score
-
+    print(f"Most problematic slice index: {worst_slice_index+1}")
     return (worst_slice_index != -1, slices_with_accuracy[worst_slice_index])
 
 
@@ -197,13 +199,15 @@ def generate_synthetic_data_from_slice(x_data, y_data, num_samples_to_generate, 
     y_df_cp = y_data.copy(deep=True)
     df_cp[dataset_label_column_name] = y_df_cp
 
-    if discrete_columns is None:
-        discrete_columns = extract_discrete_columns_from_data(df_cp)
+    samples = df_cp.sample(n=num_samples_to_generate)
 
-    ctgan = CTGANSynthesizer(epochs=num_epochs)
-    ctgan.fit(df_cp, discrete_columns)
+    #if discrete_columns is None:
+    #    discrete_columns = extract_discrete_columns_from_data(df_cp)
 
-    samples = ctgan.sample(num_samples_to_generate)
+    #ctgan = CTGANSynthesizer(epochs=num_epochs)
+    #ctgan.fit(df_cp, discrete_columns)
+
+    #samples = ctgan.sample(num_samples_to_generate)
 
     print(f"Generated {num_samples_to_generate} new samples for the problematic slice")
 
@@ -345,7 +349,7 @@ def main_code():
         print(f'Regular Baseline Model Classification Report On Test Dataset:')
         print(metrics.classification_report(y_test, y_pred_test, digits=4))
 
-        curr_acc = metric_to_use(y_test, y_pred_test)
+        curr_acc = metric_to_use(y_val, y_pred_val)
         if curr_acc > best_model_acc:
             best_model = clf
             best_model_acc = curr_acc
@@ -354,6 +358,7 @@ def main_code():
         should_run_on_label_0 = should_generate_data_from_both_labels or problematic_label == 0
 
         accuracy_threshold = best_model_acc
+        print(f"Accuracy threshold: {accuracy_threshold}")
 
         if should_run_on_label_1:
             (found_prob_slice_1, samples_x_1, samples_y_1) = run_cycle_on_validation_dataset_of_label(X_val_1, y_val_1, clf, 
@@ -398,7 +403,7 @@ def main_code():
     print(f'Regular Baseline Model Classification Report On Test Dataset:')
     print(metrics.classification_report(y_test, y_pred_test, digits=4))
 
-    curr_acc = metric_to_use(y_test, y_pred_test)
+    curr_acc = metric_to_use(y_val, y_pred_val)
     if curr_acc > best_model_acc:
         best_model = clf
         best_model_acc = curr_acc
