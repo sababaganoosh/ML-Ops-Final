@@ -30,9 +30,13 @@ def get_categorical_features(data, dataset_label_column_name):
 
 def create_tree_for_slices(x_val_df, y_val_df, xgbModel):
     y_predict = xgbModel.predict(x_val_df)
-    is_correct = (np.array(y_predict) == np.array(y_val_df)) * 1
-    dtc_labels = pd.DataFrame(is_correct)
+    y_predict_nparr = np.array(y_predict).flatten().reshape(-1,1)
+    y_val_nparr = np.array(y_val_df).flatten().reshape(-1,1)
 
+    is_correct = (y_predict_nparr == y_val_nparr) * 1
+    #print(len(is_correct), np.sum(is_correct))
+    dtc_labels = pd.DataFrame(is_correct)
+    #print(dtc_labels)
     dtc = DecisionTreeClassifier(max_depth=2)
     dtc = dtc.fit(x_val_df, dtc_labels)
 
@@ -51,7 +55,7 @@ def get_dataframes_from_slices_by_tree(two_deep_tree, x_val_df, y_val_df):
     ]
 
     features_with_threshold = [(t_feature_names[i], tree_threshold[i]) for i in range(len(tree_features))]
-
+    print(features_with_threshold)
     root = features_with_threshold[0]
     left = features_with_threshold[1]
     right = features_with_threshold[4]
@@ -108,15 +112,17 @@ def get_acc_of_each_slice(slices_dataframes, xgbModel, metric_to_use):
     return slices_with_acc
 
 
-def get_most_problematic_slice(slices_with_accuracy, min_size_threshold):
+def get_most_problematic_slice(slices_with_accuracy, min_size_threshold, accuracy_threshold):
     worst_slice_score = 0
-    worst_slice_index = 0
+    worst_slice_index = -1
 
     for i in range(len(slices_with_accuracy)):
         current_slice = slices_with_accuracy[i]
         accuracy_of_slice = current_slice[1]
         size_of_slice = len(current_slice[0][0][0])
         if size_of_slice < min_size_threshold:
+            continue
+        if accuracy_of_slice > accuracy_threshold:
             continue
 
         slice_score = 1 / (accuracy_of_slice)
@@ -125,7 +131,7 @@ def get_most_problematic_slice(slices_with_accuracy, min_size_threshold):
             worst_slice_index = i
             worst_slice_score = slice_score
 
-    return slices_with_accuracy[worst_slice_index]
+    return (worst_slice_index != -1, slices_with_accuracy[worst_slice_index])
 
 
 def get_train_df_of_problematic_slice(x_train_raw_df, x_train_df, y_train_df, problematic_slice):
@@ -206,6 +212,50 @@ def generate_synthetic_data_from_slice(x_data, y_data, num_samples_to_generate, 
 
     return (samples_x, samples_y)
 
+
+def run_cycle_on_validation_dataset_of_label(X_val_of_label, 
+                                             y_val_of_label, 
+                                             clf, 
+                                             metric_to_use, 
+                                             df_len, min_support, 
+                                             X_train_raw, 
+                                             X_train, 
+                                             y_train, 
+                                             curr_label, 
+                                             dataset_label_column_name, 
+                                             ctgan_num_epochs, 
+                                             synthetic_samples_to_generate_percent,
+                                             accuracy_threshold):
+
+    dtc = create_tree_for_slices(X_val_of_label, y_val_of_label, clf)
+    print("Created Decision Tree Classifier for finding problematic slices")
+
+    slices_dataframes = get_dataframes_from_slices_by_tree(dtc, X_val_of_label, y_val_of_label)
+    print("Extracted the slices by the tree leaves")
+
+    slices_with_accuracy = get_acc_of_each_slice(slices_dataframes, clf, metric_to_use)
+    print("Calculated accuracy of each slice")
+
+    (found_prob_slice, problematic_slice) = get_most_problematic_slice(slices_with_accuracy, df_len * min_support, accuracy_threshold)
+    print("Chose the most problematic slice")
+
+    if found_prob_slice:
+        (x_train_prob_slice, y_train_prob_slice) = get_train_df_of_problematic_slice(X_train_raw, X_train, y_train,
+                                                                                        problematic_slice)
+        print("Extracted the problematic slice from the train dataframe")
+
+        (x_train_filtered_df, y_train_filtered_df) = filter_df_by_prob_label(x_train_prob_slice, y_train_prob_slice, curr_label, dataset_label_column_name)
+        print("Filtered the problematic slice from the train dataframe")
+
+        num_samples_to_generate = int(len(x_train_filtered_df) * synthetic_samples_to_generate_percent)
+        
+        (samples_x, samples_y) = generate_synthetic_data_from_slice(x_train_filtered_df, y_train_filtered_df, num_samples_to_generate, dataset_label_column_name, ctgan_num_epochs)
+        print("Generated new samples from the problematic slice")
+    else:
+        (samples_x, samples_y) = (None, None)
+    return (found_prob_slice, samples_x, samples_y)
+        
+
 def main_code():
 
     with open('config.json', 'r') as f:
@@ -263,8 +313,14 @@ def main_code():
 
     X_val = pd.get_dummies(X_val_raw, columns=cat_feats)
     X_test = pd.get_dummies(X_test_raw, columns=cat_feats)
-    
-    val_df_len = len(X_val)
+
+    val_label_1_filter = y_val[dataset_label_column_name] == 1
+    val_label_0_filter = y_val[dataset_label_column_name] == 0
+
+    X_val_1 = X_val[val_label_1_filter]
+    X_val_0 = X_val[val_label_0_filter]
+    y_val_1 = y_val[val_label_1_filter]
+    y_val_0 = y_val[val_label_0_filter]
 
     print("Done preprocessing")
 
@@ -294,44 +350,33 @@ def main_code():
             best_model = clf
             best_model_acc = curr_acc
 
-        dtc = create_tree_for_slices(X_val, y_val, clf)
-        print("Created Decision Tree Classifier for finding problematic slices")
+        should_run_on_label_1 = should_generate_data_from_both_labels or problematic_label == 1
+        should_run_on_label_0 = should_generate_data_from_both_labels or problematic_label == 0
 
-        slices_dataframes = get_dataframes_from_slices_by_tree(dtc, X_val, y_val)
-        print("Extracted the slices by the tree leaves")
+        accuracy_threshold = best_model_acc
 
-        slices_with_accuracy = get_acc_of_each_slice(slices_dataframes, clf, metric_to_use)
-        print("Calculated accuracy of each slice")
+        if should_run_on_label_1:
+            (found_prob_slice_1, samples_x_1, samples_y_1) = run_cycle_on_validation_dataset_of_label(X_val_1, y_val_1, clf, 
+                metric_to_use, len(X_val_1), min_support, X_train_raw, X_train, y_train, 1, dataset_label_column_name, 
+                ctgan_num_epochs, synthetic_samples_to_generate_percent, accuracy_threshold)
 
-        problematic_slice = get_most_problematic_slice(slices_with_accuracy, val_df_len * min_support)
-        print("Chose the most problematic slice")
-
-        (x_train_prob_slice, y_train_prob_slice) = get_train_df_of_problematic_slice(X_train_raw, X_train, y_train,
-                                                                                     problematic_slice)
-        print("Extracted the problematic slice from the train dataframe")
-
-        (x_train_filtered_df, y_train_filtered_df) = filter_df_by_prob_label(x_train_prob_slice, y_train_prob_slice, problematic_label, dataset_label_column_name)
-        print("Filtered the problematic slice from the train dataframe")
-
-        num_samples_to_generate = int(len(x_train_filtered_df) * synthetic_samples_to_generate_percent)
+            print("Finished cycle for label 1")
         
-        (samples_x, samples_y) = generate_synthetic_data_from_slice(x_train_filtered_df, y_train_filtered_df, num_samples_to_generate, dataset_label_column_name, ctgan_num_epochs)
-        print("Generated new samples from the problematic slice")
-
-        X_train_raw = X_train_raw.append(samples_x)
-        y_train = y_train.append(samples_y)
-        print("Added new samples to the train dataframe")
-
-        if should_generate_data_from_both_labels:
-            (x_train_other_filtered_df, y_train_other_filtered_df) = filter_df_by_prob_label(x_train_prob_slice, y_train_prob_slice, abs(1 - problematic_label), dataset_label_column_name)
-            print("Filtered the other label of the dataframe")
-
-            (samples_x_other, samples_y_other) = generate_synthetic_data_from_slice(x_train_other_filtered_df, y_train_other_filtered_df, num_samples_to_generate, dataset_label_column_name, ctgan_num_epochs)
-            print("Generated new samples from the other slice")
-
-            X_train_raw = X_train_raw.append(samples_x_other)
-            y_train = y_train.append(samples_y_other)
-            print("Added new samples to the train dataframe from the other label")
+        if should_run_on_label_0:
+            (found_prob_slice_0, samples_x_0, samples_y_0) = run_cycle_on_validation_dataset_of_label(X_val_0, y_val_0, clf, 
+                metric_to_use, len(X_val_0), min_support, X_train_raw, X_train, y_train, 0, 
+                dataset_label_column_name, ctgan_num_epochs, synthetic_samples_to_generate_percent, accuracy_threshold)
+            print("Finished cycle for label 0")
+        
+        if should_run_on_label_1 and found_prob_slice_1:
+            X_train_raw = X_train_raw.append(samples_x_1)
+            y_train = y_train.append(samples_y_1)
+            print("Added new samples to the train dataframe")
+        
+        if should_run_on_label_0 and found_prob_slice_0:
+            X_train_raw = X_train_raw.append(samples_x_0)
+            y_train = y_train.append(samples_y_0)
+            print("Added new samples to the train dataframe")
         
         print("going back...")
 
