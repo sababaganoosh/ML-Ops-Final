@@ -1,0 +1,1980 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_cell_guid": "f32b4bb9-8c9e-4c30-856d-8bef43fce488",
+    "_kg_hide-output": false,
+    "_uuid": "d15cee3ba1ff6caae0f85bc8c41fec6fa2168a3a"
+   },
+   "source": [
+    "# Predictive analysis of Bank Marketing\n",
+    "\n",
+    "#### Problem Statement\n",
+    "The data is related with direct marketing campaigns of a Portuguese banking institution. The marketing campaigns were based on phone calls. Often, more than one contact to the same client was required, in order to access if the product (bank term deposit) would be ('yes') or not ('no') subscribed. \n",
+    "\n",
+    "#### What to achieve?\n",
+    "The classification goal is to predict if the client will subscribe a term deposit (variable y).\n",
+    "\n",
+    "#### Data Contains information in following format:\n",
+    "\n",
+    "### Categorical Variable :\n",
+    "\n",
+    "* Marital - (Married , Single , Divorced)\",\n",
+    "* Job - (Management,BlueCollar,Technician,entrepreneur,retired,admin.,services,selfemployed,housemaid,student,unemployed,unknown)\n",
+    "* Contact - (Telephone,Cellular,Unknown)\n",
+    "* Education - (Primary,Secondary,Tertiary,Unknown)\n",
+    "* Month - (Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec)\n",
+    "* Poutcome - (Success,Failure,Other,Unknown)\n",
+    "* Housing - (Yes/No)\n",
+    "* Loan - (Yes/No)\n",
+    "* Default - (Yes/No)\n",
+    "\n",
+    "### Numerical Variable:\n",
+    "\n",
+    "* Age\n",
+    "* Balance\n",
+    "* Day\n",
+    "* Duration\n",
+    "* Campaign\n",
+    "* Pdays\n",
+    "* Previous\n",
+    "\n",
+    "#### Class\n",
+    "* deposit - (Yes/No)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "metadata": {
+    "_cell_guid": "e07b0e5d-63ee-4636-be79-3767d8b7d5d8",
+    "_uuid": "7748fe49780a9fc1e17197e410fc624e9c465a1f",
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [],
+   "source": [
+    "#Importing required libraries\n",
+    "import pandas as pd\n",
+    "import numpy as np\n",
+    "# from sklearn.cross_validation import train_test_split\n",
+    "from sklearn.model_selection import train_test_split\n",
+    "from sklearn import metrics\n",
+    "import statsmodels.formula.api as smf\n",
+    "from sklearn import preprocessing\n",
+    "from sklearn.preprocessing import LabelEncoder\n",
+    "\n",
+    "# visualization\n",
+    "import seaborn as sns\n",
+    "import matplotlib.pyplot as plt\n",
+    "%matplotlib inline\n",
+    "\n",
+    "#creating HDR slices\n",
+    "from sklearn.neighbors import KernelDensity\n",
+    "import arviz as az\n",
+    "from sklearn import metrics\n",
+    "\n",
+    "# data synthesizing\n",
+    "from collections import Counter\n",
+    "from ctgan import CTGANSynthesizer\n",
+    "from ctgan import load_demo"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Hyper-parameters"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# splitting dataset\n",
+    "val_size = .15\n",
+    "test_size = .15\n",
+    "train_size = 1 - val_size - test_size\n",
+    "\n",
+    "# creating hdr slices\n",
+    "hdi_prob = 0.9\n",
+    "\n",
+    "# importance of slices\n",
+    "sig = .02\n",
+    "min_support = .05\n",
+    "\n",
+    "# synthesizing data\n",
+    "gen_p = .75\n",
+    "num_problem_slices = 1"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Exploring dataset"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "metadata": {
+    "_cell_guid": "0eced814-95e3-4354-99c4-507f2ef52e33",
+    "_uuid": "8f5bea0b6e74bcb66846a5db827324e97e42f768",
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>age</th>\n",
+       "      <th>job</th>\n",
+       "      <th>marital</th>\n",
+       "      <th>education</th>\n",
+       "      <th>default</th>\n",
+       "      <th>balance</th>\n",
+       "      <th>housing</th>\n",
+       "      <th>loan</th>\n",
+       "      <th>contact</th>\n",
+       "      <th>day</th>\n",
+       "      <th>month</th>\n",
+       "      <th>duration</th>\n",
+       "      <th>campaign</th>\n",
+       "      <th>pdays</th>\n",
+       "      <th>previous</th>\n",
+       "      <th>poutcome</th>\n",
+       "      <th>y</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>58</td>\n",
+       "      <td>management</td>\n",
+       "      <td>married</td>\n",
+       "      <td>tertiary</td>\n",
+       "      <td>no</td>\n",
+       "      <td>2143</td>\n",
+       "      <td>yes</td>\n",
+       "      <td>no</td>\n",
+       "      <td>unknown</td>\n",
+       "      <td>5</td>\n",
+       "      <td>may</td>\n",
+       "      <td>261</td>\n",
+       "      <td>1</td>\n",
+       "      <td>-1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>unknown</td>\n",
+       "      <td>no</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>44</td>\n",
+       "      <td>technician</td>\n",
+       "      <td>single</td>\n",
+       "      <td>secondary</td>\n",
+       "      <td>no</td>\n",
+       "      <td>29</td>\n",
+       "      <td>yes</td>\n",
+       "      <td>no</td>\n",
+       "      <td>unknown</td>\n",
+       "      <td>5</td>\n",
+       "      <td>may</td>\n",
+       "      <td>151</td>\n",
+       "      <td>1</td>\n",
+       "      <td>-1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>unknown</td>\n",
+       "      <td>no</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>33</td>\n",
+       "      <td>entrepreneur</td>\n",
+       "      <td>married</td>\n",
+       "      <td>secondary</td>\n",
+       "      <td>no</td>\n",
+       "      <td>2</td>\n",
+       "      <td>yes</td>\n",
+       "      <td>yes</td>\n",
+       "      <td>unknown</td>\n",
+       "      <td>5</td>\n",
+       "      <td>may</td>\n",
+       "      <td>76</td>\n",
+       "      <td>1</td>\n",
+       "      <td>-1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>unknown</td>\n",
+       "      <td>no</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>47</td>\n",
+       "      <td>blue-collar</td>\n",
+       "      <td>married</td>\n",
+       "      <td>unknown</td>\n",
+       "      <td>no</td>\n",
+       "      <td>1506</td>\n",
+       "      <td>yes</td>\n",
+       "      <td>no</td>\n",
+       "      <td>unknown</td>\n",
+       "      <td>5</td>\n",
+       "      <td>may</td>\n",
+       "      <td>92</td>\n",
+       "      <td>1</td>\n",
+       "      <td>-1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>unknown</td>\n",
+       "      <td>no</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>33</td>\n",
+       "      <td>unknown</td>\n",
+       "      <td>single</td>\n",
+       "      <td>unknown</td>\n",
+       "      <td>no</td>\n",
+       "      <td>1</td>\n",
+       "      <td>no</td>\n",
+       "      <td>no</td>\n",
+       "      <td>unknown</td>\n",
+       "      <td>5</td>\n",
+       "      <td>may</td>\n",
+       "      <td>198</td>\n",
+       "      <td>1</td>\n",
+       "      <td>-1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>unknown</td>\n",
+       "      <td>no</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "   age           job  marital  education default  balance housing loan  \\\n",
+       "0   58    management  married   tertiary      no     2143     yes   no   \n",
+       "1   44    technician   single  secondary      no       29     yes   no   \n",
+       "2   33  entrepreneur  married  secondary      no        2     yes  yes   \n",
+       "3   47   blue-collar  married    unknown      no     1506     yes   no   \n",
+       "4   33       unknown   single    unknown      no        1      no   no   \n",
+       "\n",
+       "   contact  day month  duration  campaign  pdays  previous poutcome   y  \n",
+       "0  unknown    5   may       261         1     -1         0  unknown  no  \n",
+       "1  unknown    5   may       151         1     -1         0  unknown  no  \n",
+       "2  unknown    5   may        76         1     -1         0  unknown  no  \n",
+       "3  unknown    5   may        92         1     -1         0  unknown  no  \n",
+       "4  unknown    5   may       198         1     -1         0  unknown  no  "
+      ]
+     },
+     "execution_count": 3,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#Importing and displaying data\n",
+    "data = pd.read_csv(\"bank-full.csv\", delimiter=\";\",header='infer')\n",
+    "data.head()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "metadata": {
+    "_cell_guid": "f5e5d486-131d-48fa-9892-6ec2f7c0de57",
+    "_uuid": "1b4b93ee4ed64ae30c7f9ba5b3c830860ade7e28",
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "(45211, 17)"
+      ]
+     },
+     "execution_count": 4,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#4521 rows and 17 features\n",
+    "data.shape"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "metadata": {
+    "_cell_guid": "7b278803-36f3-4d24-aa5c-1d23909d60bb",
+    "_uuid": "4abd9624232834f8922d505a55205f4eb163ae55",
+    "jupyter": {
+     "outputs_hidden": true
+    },
+    "scrolled": true
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "age           int64\n",
+       "job          object\n",
+       "marital      object\n",
+       "education    object\n",
+       "default      object\n",
+       "balance       int64\n",
+       "housing      object\n",
+       "loan         object\n",
+       "contact      object\n",
+       "day           int64\n",
+       "month        object\n",
+       "duration      int64\n",
+       "campaign      int64\n",
+       "pdays         int64\n",
+       "previous      int64\n",
+       "poutcome     object\n",
+       "y            object\n",
+       "dtype: object"
+      ]
+     },
+     "execution_count": 5,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#datatypes of the columns\n",
+    "data.dtypes"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "metadata": {
+    "_cell_guid": "d1db9d1e-0f02-45df-8ccf-1777088a498e",
+    "_uuid": "dcec32461edf58b91ebe5fa3eb868b2e398f9512",
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [],
+   "source": [
+    "#Since y is a class variable we will have to convert it into binary format. (Since 2 unique class values)\n",
+    "data.y.replace(('yes', 'no'), (1, 0), inplace=True)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "metadata": {
+    "_cell_guid": "66e6900b-da6c-4d55-ae82-07bbd1dfc6a2",
+    "_uuid": "b93c7aeb139100cd042321bb5b19f8dc22e2e3eb",
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Index(['age', 'job', 'marital', 'education', 'default', 'balance', 'housing',\n",
+      "       'loan', 'contact', 'day', 'month', 'duration', 'campaign', 'pdays',\n",
+      "       'previous', 'poutcome'],\n",
+      "      dtype='object')\n",
+      "Index(['y'], dtype='object')\n"
+     ]
+    }
+   ],
+   "source": [
+    "#Spliting data as X -> features and y -> class variable\n",
+    "data_y = pd.DataFrame(data['y'])\n",
+    "data_X = data.drop(['y'], axis=1)\n",
+    "print(data_X.columns)\n",
+    "print(data_y.columns)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Spliting and manipulating datasets"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "metadata": {
+    "_cell_guid": "9357bf56-b060-4bc5-b6c4-9621c5e67aa9",
+    "_uuid": "8b89744428ffe07a3476a65245bbadf8b8ca1dc4",
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "(31647, 16)\n",
+      "(6782, 16)\n",
+      "(6782, 16)\n",
+      "(31647, 1)\n",
+      "(6782, 1)\n",
+      "(6782, 1)\n"
+     ]
+    }
+   ],
+   "source": [
+    "#Dividing records in training validation and testing sets along with its shape (rows, cols)\n",
+    "X_train, X_test_raw, y_train, y_test = \\\n",
+    "train_test_split(data_X, data_y, test_size=test_size, random_state=2, stratify=data_y)\n",
+    "\n",
+    "X_train_raw, X_val_raw, y_train, y_val = \\\n",
+    "train_test_split(X_train, y_train, test_size=val_size/(val_size+train_size), random_state=2, stratify=y_train)\n",
+    "\n",
+    "print (X_train_raw.shape)\n",
+    "print(X_val_raw.shape)\n",
+    "print (X_test_raw.shape)\n",
+    "\n",
+    "print (y_train.shape)\n",
+    "print(y_val.shape)\n",
+    "print (y_test.shape)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_cell_guid": "9a9917e0-8ff4-45d7-a5b7-426964c9ccc8",
+    "_uuid": "902709dfbfc1a27bf26d46f6f96dc6f75d36ef51"
+   },
+   "source": [
+    "Since the dtype contains types other than int, float; we need to convert those column values into proper format in order to fit the data in model."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "['job',\n",
+       " 'marital',\n",
+       " 'education',\n",
+       " 'default',\n",
+       " 'housing',\n",
+       " 'loan',\n",
+       " 'contact',\n",
+       " 'month',\n",
+       " 'poutcome']"
+      ]
+     },
+     "execution_count": 9,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "cat_feats = []\n",
+    "for i, col in enumerate(data.dtypes):\n",
+    "    if np.issubdtype(col, np.integer) == False and np.issubdtype(col, np.floating) == False:\n",
+    "        if data.columns[i] == 'y':\n",
+    "            pass\n",
+    "        else:\n",
+    "            cat_feats.append(data.columns[i])\n",
+    "\n",
+    "cat_feats"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "metadata": {
+    "_cell_guid": "227355cc-b93c-4a8c-8e27-2c43d9ae88f2",
+    "_uuid": "899975d140ce2dc06842ae0b5067e79e1120e533",
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [],
+   "source": [
+    "#Converting object type data into numeric type using One-Hot encoding method which is\n",
+    "#majorly used for XGBoost (for better accuracy) [Applicable only for non numeric categorical features]\n",
+    "X_train = pd.get_dummies(X_train_raw, columns=cat_feats)\n",
+    "X_val = pd.get_dummies(X_val_raw, columns=cat_feats)\n",
+    "X_test = pd.get_dummies(X_test_raw, columns=cat_feats)\n",
+    "#pd is instance of pandas. Using get_dummies method we can directly convert any type of data into One-Hot encoded format."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "metadata": {
+    "_cell_guid": "ed9363d8-1cb5-422a-9dc2-01f1422b3e52",
+    "_uuid": "9cb4350ffa3689dc9e47c6bd1dcdb82afd666e31",
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "age                    int64\n",
+       "balance                int64\n",
+       "day                    int64\n",
+       "duration               int64\n",
+       "campaign               int64\n",
+       "pdays                  int64\n",
+       "previous               int64\n",
+       "job_admin.             uint8\n",
+       "job_blue-collar        uint8\n",
+       "job_entrepreneur       uint8\n",
+       "job_housemaid          uint8\n",
+       "job_management         uint8\n",
+       "job_retired            uint8\n",
+       "job_self-employed      uint8\n",
+       "job_services           uint8\n",
+       "job_student            uint8\n",
+       "job_technician         uint8\n",
+       "job_unemployed         uint8\n",
+       "job_unknown            uint8\n",
+       "marital_divorced       uint8\n",
+       "marital_married        uint8\n",
+       "marital_single         uint8\n",
+       "education_primary      uint8\n",
+       "education_secondary    uint8\n",
+       "education_tertiary     uint8\n",
+       "education_unknown      uint8\n",
+       "default_no             uint8\n",
+       "default_yes            uint8\n",
+       "housing_no             uint8\n",
+       "housing_yes            uint8\n",
+       "loan_no                uint8\n",
+       "loan_yes               uint8\n",
+       "contact_cellular       uint8\n",
+       "contact_telephone      uint8\n",
+       "contact_unknown        uint8\n",
+       "month_apr              uint8\n",
+       "month_aug              uint8\n",
+       "month_dec              uint8\n",
+       "month_feb              uint8\n",
+       "month_jan              uint8\n",
+       "month_jul              uint8\n",
+       "month_jun              uint8\n",
+       "month_mar              uint8\n",
+       "month_may              uint8\n",
+       "month_nov              uint8\n",
+       "month_oct              uint8\n",
+       "month_sep              uint8\n",
+       "poutcome_failure       uint8\n",
+       "poutcome_other         uint8\n",
+       "poutcome_success       uint8\n",
+       "poutcome_unknown       uint8\n",
+       "dtype: object"
+      ]
+     },
+     "execution_count": 11,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#Checking types of all the columns converted\n",
+    "X_train.dtypes"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "metadata": {
+    "_cell_guid": "5770e9a7-2bda-4992-9659-89af4796c384",
+    "_uuid": "15f82e3d8f24aadf8dc977999ff12b84d44a8ce2",
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>age</th>\n",
+       "      <th>balance</th>\n",
+       "      <th>day</th>\n",
+       "      <th>duration</th>\n",
+       "      <th>campaign</th>\n",
+       "      <th>pdays</th>\n",
+       "      <th>previous</th>\n",
+       "      <th>job_admin.</th>\n",
+       "      <th>job_blue-collar</th>\n",
+       "      <th>job_entrepreneur</th>\n",
+       "      <th>...</th>\n",
+       "      <th>month_jun</th>\n",
+       "      <th>month_mar</th>\n",
+       "      <th>month_may</th>\n",
+       "      <th>month_nov</th>\n",
+       "      <th>month_oct</th>\n",
+       "      <th>month_sep</th>\n",
+       "      <th>poutcome_failure</th>\n",
+       "      <th>poutcome_other</th>\n",
+       "      <th>poutcome_success</th>\n",
+       "      <th>poutcome_unknown</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>34975</th>\n",
+       "      <td>37</td>\n",
+       "      <td>1517</td>\n",
+       "      <td>6</td>\n",
+       "      <td>60</td>\n",
+       "      <td>1</td>\n",
+       "      <td>-1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>42984</th>\n",
+       "      <td>70</td>\n",
+       "      <td>579</td>\n",
+       "      <td>11</td>\n",
+       "      <td>82</td>\n",
+       "      <td>2</td>\n",
+       "      <td>181</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>12630</th>\n",
+       "      <td>40</td>\n",
+       "      <td>13</td>\n",
+       "      <td>4</td>\n",
+       "      <td>178</td>\n",
+       "      <td>1</td>\n",
+       "      <td>-1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>6120</th>\n",
+       "      <td>55</td>\n",
+       "      <td>150</td>\n",
+       "      <td>27</td>\n",
+       "      <td>285</td>\n",
+       "      <td>1</td>\n",
+       "      <td>-1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>15077</th>\n",
+       "      <td>43</td>\n",
+       "      <td>833</td>\n",
+       "      <td>17</td>\n",
+       "      <td>156</td>\n",
+       "      <td>1</td>\n",
+       "      <td>-1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "<p>5 rows × 51 columns</p>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "       age  balance  day  duration  campaign  pdays  previous  job_admin.  \\\n",
+       "34975   37     1517    6        60         1     -1         0           0   \n",
+       "42984   70      579   11        82         2    181         1           0   \n",
+       "12630   40       13    4       178         1     -1         0           0   \n",
+       "6120    55      150   27       285         1     -1         0           0   \n",
+       "15077   43      833   17       156         1     -1         0           0   \n",
+       "\n",
+       "       job_blue-collar  job_entrepreneur  ...  month_jun  month_mar  \\\n",
+       "34975                0                 0  ...          0          0   \n",
+       "42984                0                 0  ...          0          0   \n",
+       "12630                1                 0  ...          0          0   \n",
+       "6120                 0                 0  ...          0          0   \n",
+       "15077                1                 0  ...          0          0   \n",
+       "\n",
+       "       month_may  month_nov  month_oct  month_sep  poutcome_failure  \\\n",
+       "34975          1          0          0          0                 0   \n",
+       "42984          0          0          0          0                 1   \n",
+       "12630          0          0          0          0                 0   \n",
+       "6120           1          0          0          0                 0   \n",
+       "15077          0          0          0          0                 0   \n",
+       "\n",
+       "       poutcome_other  poutcome_success  poutcome_unknown  \n",
+       "34975               0                 0                 1  \n",
+       "42984               0                 0                 0  \n",
+       "12630               0                 0                 1  \n",
+       "6120                0                 0                 1  \n",
+       "15077               0                 0                 1  \n",
+       "\n",
+       "[5 rows x 51 columns]"
+      ]
+     },
+     "execution_count": 12,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#Our New dataframe ready for XGBoost\n",
+    "X_train.head()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Regular Training"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "metadata": {
+    "_cell_guid": "ffe03d50-e066-4b9b-ac42-5c13ec864c05",
+    "_uuid": "662f0acfaf2119b82cfbfcfae6ca9938a6b36bd5",
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "XGBClassifier(base_score=None, booster=None, colsample_bylevel=None,\n",
+       "              colsample_bynode=None, colsample_bytree=None,\n",
+       "              enable_categorical=False, gamma=None, gpu_id=None,\n",
+       "              importance_type=None, interaction_constraints=None,\n",
+       "              learning_rate=None, max_delta_step=None, max_depth=None,\n",
+       "              min_child_weight=None, missing=nan, monotone_constraints=None,\n",
+       "              n_estimators=100, n_jobs=None, num_parallel_tree=None,\n",
+       "              predictor=None, random_state=None, reg_alpha=None,\n",
+       "              reg_lambda=None, scale_pos_weight=None, subsample=None,\n",
+       "              tree_method=None, validate_parameters=None, verbosity=None)"
+      ]
+     },
+     "execution_count": 13,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#Create an XGB classifier and train it on 70% of the data set.\n",
+    "from sklearn import svm\n",
+    "from xgboost import XGBClassifier\n",
+    "clf = XGBClassifier()\n",
+    "clf"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "metadata": {
+    "_cell_guid": "7439792a-141f-44e9-b7d1-25b6b965d0ce",
+    "_kg_hide-output": true,
+    "_uuid": "929529f5b109739fb3445e2321c65ecab972f63d",
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "c:\\users\\ziv\\appdata\\local\\programs\\python\\python38\\lib\\site-packages\\xgboost\\sklearn.py:1224: UserWarning: The use of label encoder in XGBClassifier is deprecated and will be removed in a future release. To remove this warning, do the following: 1) Pass option use_label_encoder=False when constructing XGBClassifier object; and 2) Encode your labels (y) as integers starting with 0, i.e. 0, 1, 2, ..., [num_class - 1].\n",
+      "  warnings.warn(label_encoder_deprecation_msg, UserWarning)\n",
+      "c:\\users\\ziv\\appdata\\local\\programs\\python\\python38\\lib\\site-packages\\sklearn\\utils\\validation.py:63: DataConversionWarning: A column-vector y was passed when a 1d array was expected. Please change the shape of y to (n_samples, ), for example using ravel().\n",
+      "  return f(*args, **kwargs)\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "[22:38:05] WARNING: C:/Users/Administrator/workspace/xgboost-win64_release_1.5.0/src/learner.cc:1115: Starting in XGBoost 1.3.0, the default evaluation metric used with the objective 'binary:logistic' was changed from 'error' to 'logloss'. Explicitly set eval_metric if you'd like to restore the old behavior.\n"
+     ]
+    },
+    {
+     "data": {
+      "text/plain": [
+       "XGBClassifier(base_score=0.5, booster='gbtree', colsample_bylevel=1,\n",
+       "              colsample_bynode=1, colsample_bytree=1, enable_categorical=False,\n",
+       "              gamma=0, gpu_id=-1, importance_type=None,\n",
+       "              interaction_constraints='', learning_rate=0.300000012,\n",
+       "              max_delta_step=0, max_depth=6, min_child_weight=1, missing=nan,\n",
+       "              monotone_constraints='()', n_estimators=100, n_jobs=12,\n",
+       "              num_parallel_tree=1, predictor='auto', random_state=0,\n",
+       "              reg_alpha=0, reg_lambda=1, scale_pos_weight=1, subsample=1,\n",
+       "              tree_method='exact', validate_parameters=1, verbosity=None)"
+      ]
+     },
+     "execution_count": 14,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "clf.fit(X_train, y_train)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 15,
+   "metadata": {
+    "_cell_guid": "379f1d28-d06a-4d10-aa97-3515439c37a6",
+    "_uuid": "abdafa50b5432322e54deef81296b7297f2d7b4d",
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "0.9059274550280153"
+      ]
+     },
+     "execution_count": 15,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "y_pred = clf.predict(X_val)\n",
+    "val_acc = np.sum(y_pred.reshape([-1,1]) == np.array(y_val)) / len(y_pred)\n",
+    "val_acc"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "baseline = metrics.f1_score(y_val, y_pred)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 17,
+   "metadata": {
+    "_cell_guid": "c9ba165b-84b3-4874-8c74-710bf87f9d56",
+    "_uuid": "f2a45a8dfc5b797cc07a27d2b436b4d75dc78028",
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "0.9059274550280153\n"
+     ]
+    }
+   ],
+   "source": [
+    "#classification accuracy\n",
+    "from sklearn import metrics\n",
+    "print(metrics.accuracy_score(y_val, y_pred))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Improving Model"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Creating HDR Slices"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 18,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def f1(TP,TN,FP,FN):\n",
+    "    return TP/(TP+0.5*(FN+FP)) \n",
+    "\n",
+    "def recall(TP,TN,FP,FN):\n",
+    "    return TP/(TP+FN) \n",
+    "\n",
+    "def precision(TP,TN,FP,FN):\n",
+    "    return TP/(TP+FP) \n",
+    "\n",
+    "def f_beta(TP,TN,FP,FN, beta):\n",
+    "    return ((1+beta*beta)*TP)/((1+beta*beta)*TP+beta*beta*FN+0.5*FP) \n",
+    "\n",
+    "def f_half(TP,TN,FP,FN):\n",
+    "    return f_beta(TP,TN,FP,FN,0.5)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 19,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def confusion_metrics(row):\n",
+    "    if row['y'] == 1 and row['y_pred'] == 0:\n",
+    "        val = 'FN'\n",
+    "    elif row['y'] == 0 and row['y_pred'] == 1:\n",
+    "        val = 'FP'\n",
+    "    elif row['y'] == 1:\n",
+    "        val = 'TP'\n",
+    "    else:\n",
+    "        val = 'TN'\n",
+    "\n",
+    "    return val"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 20,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# generalized function for comparing accuracy\n",
+    "def compare_acc(dfx, dfy, y_pred, sl):\n",
+    "    feat = sl[0][0]\n",
+    "    if sl[0][1] is None:\n",
+    "        indexes = np.arange(dfx.index[:][-1])\n",
+    "    elif type(sl[0][1]) == list:\n",
+    "        hdr_min, hdr_max = sl[0][1][0], sl[0][1][1]\n",
+    "        if hdr_min == hdr_max:\n",
+    "            indexes = dfx.index[dfx[feat] == hdr_min]\n",
+    "        else:\n",
+    "            indexes = dfx.index[dfx[feat].between(hdr_min, hdr_max)]\n",
+    "    else:\n",
+    "        indexes = dfx.index[dfx[feat] == sl[0][1]]\n",
+    "    test_acc = np.sum(y_pred == np.array(dfy.values)[:,0]) / len(y_pred)\n",
+    "    sub_acc = np.sum(y_pred[indexes] == np.array(dfy.loc[indexes].values)[:,0]) / len(indexes)\n",
+    "\n",
+    "    dif = test_acc - sub_acc\n",
+    "    \n",
+    "    return dif, sub_acc"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 21,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def compare_f1(dfx, y, y_pred , sl):\n",
+    "    feat = sl[0][0]\n",
+    "    \n",
+    "    val_total_f1 = metrics.f1_score(y, y_pred)\n",
+    "    \n",
+    "    main = pd.DataFrame()\n",
+    "    main[feat] = dfx[feat].copy()\n",
+    "\n",
+    "    main['y_pred'] = y_pred\n",
+    "    main['y'] = y\n",
+    "    \n",
+    "    main['metrics'] = main.apply(confusion_metrics, axis=1)\n",
+    "\n",
+    "    if type(sl[0][1]) == list:\n",
+    "        left = sl[0][1][0]\n",
+    "        right = sl[0][1][1]\n",
+    "\n",
+    "        indexes = dfx.index[dfx[feat].between(left, right)]\n",
+    "        new_dfx = main.loc[indexes]\n",
+    "        new_y = y.loc[indexes]\n",
+    "        new_y_pred = y_pred[indexes]\n",
+    "        \n",
+    "    else:\n",
+    "        val = sl[0][1]\n",
+    "        \n",
+    "        indexes = dfx.index[dfx[feat] == val]\n",
+    "        new_dfx = main.loc[indexes]\n",
+    "        new_y = y.loc[indexes]\n",
+    "        new_y_pred = y_pred[indexes]\n",
+    "    \n",
+    "    TP = new_dfx[feat].where(new_dfx.metrics == 'TP').count()\n",
+    "    TN = new_dfx[feat].where(new_dfx.metrics == 'TN').count()\n",
+    "    FP = new_dfx[feat].where(new_dfx.metrics == 'FP').count()\n",
+    "    FN = new_dfx[feat].where(new_dfx.metrics == 'FN').count()\n",
+    "    if FP == 0 and FN == 0:\n",
+    "        val_slice_f1 = 1\n",
+    "    else:\n",
+    "        \n",
+    "        val_slice_f1 = metrics.f1_score(new_y, new_y_pred)\n",
+    "\n",
+    "    dif = val_total_f1 - val_slice_f1\n",
+    "\n",
+    "    return dif, val_slice_f1"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 22,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def find_range(data,y,y_pred ,col, hdi_prob = hdi_prob, q1=2,q2 = 5, func = f1, baseline = baseline): # with moving window\n",
+    "    # HDR\n",
+    "    #   print(f\"Checking {col} feature:\")\n",
+    "\n",
+    "    main = pd.DataFrame()\n",
+    "    main[col] = data[col].copy()\n",
+    "\n",
+    "    main['y_pred'] = y_pred\n",
+    "    main['y'] = y\n",
+    "\n",
+    "    main['metrics'] = main.apply(confusion_metrics, axis=1)\n",
+    "\n",
+    "\n",
+    "    np_data = main[col].to_numpy()\n",
+    "    hdr = az.hdi(np_data, hdi_prob=hdi_prob)\n",
+    "\n",
+    "    new_left = hdr[0]\n",
+    "    new_right = hdr[1]\n",
+    "\n",
+    "    #print(f\"HDR = [{new_left}, {new_right}]\")\n",
+    "\n",
+    "\n",
+    "    new_data = main.where(main[col] >= new_left).where(main[col] <= new_right)\n",
+    "\n",
+    "    TP = new_data[col].where(new_data.metrics == 'TP').count() # always closed from right\n",
+    "    TN = new_data[col].where(new_data.metrics == 'TN').count()\n",
+    "    FP = new_data[col].where(new_data.metrics == 'FP').count()\n",
+    "    FN = new_data[col].where(new_data.metrics == 'FN').count()\n",
+    "    acc = func(TP,TN,FP,FN)\n",
+    "\n",
+    "    #print(f\"HDR accuracy measure= {acc:.3f}\")\n",
+    "\n",
+    "\n",
+    "    # find bigest error in HDR using pd.qcut\n",
+    "    slices = []\n",
+    "    lowest_acc = 1\n",
+    "    slice_to_upgrade = None\n",
+    "    slices_under_baseline = []\n",
+    "    worst_matrix = [0,0,0,0]\n",
+    "    n_unique = len(pd.unique(new_data[col]))\n",
+    "\n",
+    "    #print(n_unique)\n",
+    "    if q2> n_unique/2:\n",
+    "        q2 = n_unique\n",
+    "\n",
+    "    for q in range(q1,q2+1):\n",
+    "        x = pd.qcut(new_data[col], q=q, duplicates='drop').value_counts()\n",
+    "        #x = pd.cut(new_data, bins=q, duplicates='drop').value_counts()\n",
+    "        if len(x) < q:\n",
+    "          #print(f'not splittiable with qcut to {q} intervals')\n",
+    "          break\n",
+    "    \n",
+    "    for interval in x.index:\n",
+    "      left = interval.left\n",
+    "      right = interval.right\n",
+    "      TP = new_data[col].where(new_data.metrics == 'TP').where(new_data[col] > left).where(new_data[col] <= right).count() # always closed from right\n",
+    "      TN = new_data[col].where(new_data.metrics == 'TN').where(new_data[col] > left).where(new_data[col] <= right).count()\n",
+    "      FP = new_data[col].where(new_data.metrics == 'FP').where(new_data[col] > left).where(new_data[col] <= right).count()\n",
+    "      FN = new_data[col].where(new_data.metrics == 'FN').where(new_data[col] > left).where(new_data[col] <= right).count()\n",
+    "      acc = func(TP,TN,FP,FN)\n",
+    "\n",
+    "      if  acc < lowest_acc: #and acc > 0:\n",
+    "        lowest_acc = acc\n",
+    "        slice_to_upgrade = interval\n",
+    "        worst_matrix = [TP, TN, FP, FN]\n",
+    "\n",
+    "      slices.append([interval, acc, TP, TN, FP, FN])\n",
+    "      if acc < baseline:\n",
+    "        slices_under_baseline.append(interval)\n",
+    "\n",
+    "  #print(f\"worst slice = {slice_to_upgrade} with accuracy of {lowest_acc}\")\n",
+    "  #print(f\"(TP,TN,FP,FN) = ({worst_matrix[0]},{worst_matrix[1]},{worst_matrix[2]},{worst_matrix[3]})\")\n",
+    "\n",
+    "    return slices_under_baseline, slice_to_upgrade, lowest_acc, worst_matrix"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 23,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "['age', 'balance', 'day', 'duration', 'campaign', 'pdays', 'previous']"
+      ]
+     },
+     "execution_count": 23,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# get list of all numeric feature slices\n",
+    "num_feats = []\n",
+    "for i, col in enumerate(data.dtypes):\n",
+    "    if np.issubdtype(col, np.integer):\n",
+    "        if data.columns[i] == 'y':\n",
+    "            pass\n",
+    "        else:\n",
+    "            num_feats.append(data.columns[i])\n",
+    "\n",
+    "num_feats"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 24,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "{'age': [48.0001, 57.0],\n",
+       " 'balance': [-547.0009, 15.0],\n",
+       " 'day': [1.9991, 7.0],\n",
+       " 'duration': [3.9991000000000003, 87.0],\n",
+       " 'campaign': [2.0001, 5.0],\n",
+       " 'pdays': [-1.0009, 190.0],\n",
+       " 'previous': [-0.0009, 2.0]}"
+      ]
+     },
+     "execution_count": 24,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df_x = X_val.reset_index(drop=True)\n",
+    "df_y = y_val.reset_index(drop=True)\n",
+    "\n",
+    "compare = y_pred == np.array(df_y.values[:,0])\n",
+    "bad_guesses = X_val.iloc[np.where(compare == 0)[0]]\n",
+    "\n",
+    "hdr_dict = {}\n",
+    "for feat in num_feats:\n",
+    "    _, slice_to_upgrade, _, _ = find_range(df_x,df_y,y_pred ,col = feat)\n",
+    "    if slice_to_upgrade == None:\n",
+    "        pass\n",
+    "    else:\n",
+    "        hdr_dict[feat] = [slice_to_upgrade.left + .0001, slice_to_upgrade.right]\n",
+    "\n",
+    "hdr_dict"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Creating All Slices"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 25,
+   "metadata": {
+    "_cell_guid": "a5e2a920-9744-4057-b49c-997ab6568472",
+    "_uuid": "1ba50344d124c95a4edc6c738814589f96440785",
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "[(['age', [48.0001, 57.0]],),\n",
+       " (['balance', [-547.0009, 15.0]],),\n",
+       " (['day', [1.9991, 7.0]],),\n",
+       " (['duration', [3.9991000000000003, 87.0]],),\n",
+       " (['campaign', [2.0001, 5.0]],),\n",
+       " (['pdays', [-1.0009, 190.0]],),\n",
+       " (['previous', [-0.0009, 2.0]],),\n",
+       " (['job_admin.', 1],),\n",
+       " (['job_blue-collar', 1],),\n",
+       " (['job_entrepreneur', 1],),\n",
+       " (['job_housemaid', 1],),\n",
+       " (['job_management', 1],),\n",
+       " (['job_retired', 1],),\n",
+       " (['job_self-employed', 1],),\n",
+       " (['job_services', 1],),\n",
+       " (['job_student', 1],),\n",
+       " (['job_technician', 1],),\n",
+       " (['job_unemployed', 1],),\n",
+       " (['job_unknown', 1],),\n",
+       " (['marital_divorced', 1],),\n",
+       " (['marital_married', 1],),\n",
+       " (['marital_single', 1],),\n",
+       " (['education_primary', 1],),\n",
+       " (['education_secondary', 1],),\n",
+       " (['education_tertiary', 1],),\n",
+       " (['education_unknown', 1],),\n",
+       " (['default_no', 1],),\n",
+       " (['default_yes', 1],),\n",
+       " (['housing_no', 1],),\n",
+       " (['housing_yes', 1],),\n",
+       " (['loan_no', 1],),\n",
+       " (['loan_yes', 1],),\n",
+       " (['contact_cellular', 1],),\n",
+       " (['contact_telephone', 1],),\n",
+       " (['contact_unknown', 1],),\n",
+       " (['month_apr', 1],),\n",
+       " (['month_aug', 1],),\n",
+       " (['month_dec', 1],),\n",
+       " (['month_feb', 1],),\n",
+       " (['month_jan', 1],),\n",
+       " (['month_jul', 1],),\n",
+       " (['month_jun', 1],),\n",
+       " (['month_mar', 1],),\n",
+       " (['month_may', 1],),\n",
+       " (['month_nov', 1],),\n",
+       " (['month_oct', 1],),\n",
+       " (['month_sep', 1],),\n",
+       " (['poutcome_failure', 1],),\n",
+       " (['poutcome_other', 1],),\n",
+       " (['poutcome_success', 1],),\n",
+       " (['poutcome_unknown', 1],)]"
+      ]
+     },
+     "execution_count": 25,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "from itertools import combinations\n",
+    "# generate slices\n",
+    "feats_and_vals = []\n",
+    "for feat in X_train.columns:\n",
+    "    # for numeric features only create slices in hdr\n",
+    "    if feat in num_feats:\n",
+    "        if feat not in hdr_dict.keys():\n",
+    "            pass\n",
+    "        else:\n",
+    "            feats_and_vals.append([feat, hdr_dict[feat]])\n",
+    "    # for categorical features, create slices for each unique value\n",
+    "    else:\n",
+    "        for val in X_train[feat].unique():\n",
+    "            if val == 0:\n",
+    "                pass\n",
+    "            else:\n",
+    "                feats_and_vals.append([feat, val])\n",
+    "\n",
+    "combos = list(combinations(feats_and_vals,1))\n",
+    "combos"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Filtering Problematic Slices"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 26,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def test_error(prob_slice):\n",
+    "    feat = prob_slice[0][0]\n",
+    "    \n",
+    "    if type(prob_slice[0][1]) == list:\n",
+    "        hdr_min, hdr_max = prob_slice[0][1][0], prob_slice[0][1][1]\n",
+    "        if hdr_min == hdr_max:\n",
+    "            test_error = len(bad_guesses[bad_guesses[feat] == hdr_min]) / len(bad_guesses)\n",
+    "        else:\n",
+    "            test_error = len(bad_guesses[bad_guesses[feat].between(hdr_min, hdr_max)]) / len(bad_guesses)\n",
+    "    else:\n",
+    "        val = prob_slice[0][1]\n",
+    "        test_error = len(bad_guesses[bad_guesses[feat] == val]) / len(bad_guesses)\n",
+    "    \n",
+    "    return test_error"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 27,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "[[(['age', [48.0001, 57.0]],), 0.46, 0.16927899686520376],\n",
+       " [(['balance', [-547.0009, 15.0]],), 0.45569620253164556, 0.13479623824451412],\n",
+       " [(['day', [1.9991, 7.0]],), 0.4840764331210191, 0.25391849529780564],\n",
+       " [(['campaign', [2.0001, 5.0]],), 0.5128205128205129, 0.2084639498432602],\n",
+       " [(['previous', [-0.0009, 2.0]],), 0.5176678445229682, 0.8557993730407524],\n",
+       " [(['job_technician', 1],), 0.5086206896551725, 0.1786833855799373],\n",
+       " [(['education_tertiary', 1],), 0.5285171102661598, 0.3887147335423197],\n",
+       " [(['housing_yes', 1],), 0.45982142857142855, 0.3793103448275862],\n",
+       " [(['contact_unknown', 1],), 0.3230769230769231, 0.13793103448275862],\n",
+       " [(['month_jul', 1],), 0.47058823529411764, 0.12695924764890282],\n",
+       " [(['month_jun', 1],), 0.45398773006134974, 0.13949843260188088],\n",
+       " [(['month_may', 1],), 0.48068669527896996, 0.1896551724137931],\n",
+       " [(['month_nov', 1],), 0.48192771084337355, 0.06739811912225706],\n",
+       " [(['poutcome_failure', 1],), 0.45161290322580644, 0.13322884012539185],\n",
+       " [(['poutcome_other', 1],), 0.49411764705882355, 0.06739811912225706],\n",
+       " [(['poutcome_unknown', 1],), 0.48561565017261227, 0.700626959247649]]"
+      ]
+     },
+     "execution_count": 27,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# check importance of slices\n",
+    "prob_slices = []\n",
+    "for sl in combos:\n",
+    "    dif, acc = compare_f1(df_x, df_y, y_pred, sl)\n",
+    "    if dif > sig:\n",
+    "        error = test_error(sl)\n",
+    "        if error >= min_support:\n",
+    "            prob_slices.append([sl, acc, error])\n",
+    "\n",
+    "prob_slices"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Adding oversampled data to training set"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 28,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# scoring importance of problem slices and extracting the most important\n",
+    "num_slices = num_problem_slices\n",
+    "slices_score = []\n",
+    "for sl in prob_slices:\n",
+    "    feat = sl[0][0][0]\n",
+    "    error, f1 = sl[2],sl[1]\n",
+    "    if f1==0:\n",
+    "        f1=.1\n",
+    "    score = error/f1\n",
+    "    slices_score.append(score)\n",
+    "    \n",
+    "slices_score = np.array(slices_score) * (-1)\n",
+    "top = list(slices_score.argsort()[:num_slices])\n",
+    "\n",
+    "important_slices = []\n",
+    "for idx in top:\n",
+    "    important_slices.append(prob_slices[idx])\n",
+    "\n",
+    "important_feats = []\n",
+    "for sl in important_slices:\n",
+    "    feat = sl[0][0][0]\n",
+    "    important_feats.append(feat)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 29,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# creating new dataset with oversampled important slices\n",
+    "\n",
+    "X = X_train.copy().reset_index(drop=True)\n",
+    "y = y_train.copy().reset_index(drop=True)\n",
+    "\n",
+    "X_train_new = X_train.copy().reset_index(drop=True)\n",
+    "y_train_new = y_train.copy().reset_index(drop=True)\n",
+    "\n",
+    "\n",
+    "\n",
+    "for prob_slice in important_slices:\n",
+    "    column_name = prob_slice[0][0][0]\n",
+    "    key = column_name\n",
+    "\n",
+    "    is_categorical = '_' in column_name\n",
+    "\n",
+    "    if is_categorical:\n",
+    "        column_value = 1\n",
+    "        \n",
+    "        rand = X[X[column_name] == column_value]\n",
+    "        rand_y = y.loc[rand.index]\n",
+    "\n",
+    "    else:\n",
+    "        prob_feat = prob_slice\n",
+    "        column_from_val, column_to_val = prob_slice[0][0][1]\n",
+    "        \n",
+    "        rand = X[X[column_name].between(column_from_val, column_to_val)]\n",
+    "        rand_y = y.loc[rand.index]\n",
+    "        \n",
+    "        \n",
+    "    ####\n",
+    "    minority_class = np.argmin(rand_y.value_counts())\n",
+    "    minority_idx = rand_y[rand_y['y'] == minority_class].index\n",
+    "    majority_idx = rand_y[rand_y['y'] != minority_class].index\n",
+    "\n",
+    "    X_minority = rand.copy()\n",
+    "    X_minority = X_minority.loc[minority_idx]\n",
+    "    y_minority = rand_y.loc[minority_idx]\n",
+    "\n",
+    "    X_majority = rand.copy()\n",
+    "    X_majority = X_majority.loc[majority_idx]\n",
+    "    y_majority = rand_y.loc[majority_idx]\n",
+    "    ####\n",
+    "\n",
+    "    N = int(len(X_minority) * gen_p)\n",
+    "    rand_minority = X_minority.sample(n=N)\n",
+    "    rand_y_minority = y_minority.loc[rand_minority.index]\n",
+    "    rand_majority = X_majority.sample(n=N)\n",
+    "    rand_y_majority = y_majority.loc[rand_majority.index]\n",
+    "    X_rand = X.sample(n=N)\n",
+    "    y_rand = y.loc[X_rand.index]\n",
+    "\n",
+    "    X_train_new = X.copy().append(rand_minority)\n",
+    "    X_train_new = X_train_new.append(rand_majority)\n",
+    "    \n",
+    "    y_train_new = y.copy().append(rand_y_minority)\n",
+    "    y_train_new = y_train_new.append(rand_y_majority)\n",
+    "    \n",
+    "    X_train_new_2 = X.copy().append(rand_minority)\n",
+    "    \n",
+    "    y_train_new_2 = y.copy().append(rand_y_minority)\n",
+    "    \n",
+    "    X_train_random = X.copy().append(X_rand)\n",
+    "    y_train_random = y.copy().append(y_rand)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 30,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "[[(['previous', [-0.0009, 2.0]],), 0.5176678445229682, 0.8557993730407524]]"
+      ]
+     },
+     "execution_count": 30,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "important_slices"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 31,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "f1s_val = {}\n",
+    "for i, sl in enumerate(important_slices):\n",
+    "    sl_name = sl[0][0][0]\n",
+    "    dif, f1 = compare_f1(df_x, df_y, y_pred , sl[0])\n",
+    "    if i == 0:        \n",
+    "        f1s_val['total_acc'] = val_acc\n",
+    "        f1s_val['total_f1'] = f1 + dif\n",
+    "    f1s_val[f'{sl_name}_f1'] = f1"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Regular Boosted Model Performance on Test Set"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 32,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "0.9029784724270127"
+      ]
+     },
+     "execution_count": 32,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "y_pred_test = clf.predict(X_test)\n",
+    "np.array(y_pred).shape\n",
+    "test_acc = np.sum(y_pred_test.reshape([-1,1]) == np.array(y_test)) / len(y_pred_test)\n",
+    "test_acc"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 33,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df_x_test = X_test.reset_index(drop=True)\n",
+    "df_y_test = y_test.reset_index(drop=True)\n",
+    "\n",
+    "f1s_test = {}\n",
+    "for i, sl in enumerate(important_slices):\n",
+    "    sl_name = sl[0][0][0]\n",
+    "    dif, f1 = compare_f1(df_x_test, df_y_test, y_pred_test , sl[0])\n",
+    "    if i == 0:        \n",
+    "        f1s_test['total_acc'] = test_acc\n",
+    "        f1s_test['total_f1'] = f1 + dif\n",
+    "    f1s_test[f'{sl_name}_f1'] = f1"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Updated Random Performance on Test Set"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 34,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "c:\\users\\ziv\\appdata\\local\\programs\\python\\python38\\lib\\site-packages\\xgboost\\sklearn.py:1224: UserWarning: The use of label encoder in XGBClassifier is deprecated and will be removed in a future release. To remove this warning, do the following: 1) Pass option use_label_encoder=False when constructing XGBClassifier object; and 2) Encode your labels (y) as integers starting with 0, i.e. 0, 1, 2, ..., [num_class - 1].\n",
+      "  warnings.warn(label_encoder_deprecation_msg, UserWarning)\n",
+      "c:\\users\\ziv\\appdata\\local\\programs\\python\\python38\\lib\\site-packages\\sklearn\\utils\\validation.py:63: DataConversionWarning: A column-vector y was passed when a 1d array was expected. Please change the shape of y to (n_samples, ), for example using ravel().\n",
+      "  return f(*args, **kwargs)\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "[22:38:13] WARNING: C:/Users/Administrator/workspace/xgboost-win64_release_1.5.0/src/learner.cc:1115: Starting in XGBoost 1.3.0, the default evaluation metric used with the objective 'binary:logistic' was changed from 'error' to 'logloss'. Explicitly set eval_metric if you'd like to restore the old behavior.\n"
+     ]
+    },
+    {
+     "data": {
+      "text/plain": [
+       "0.9025361250368623"
+      ]
+     },
+     "execution_count": 34,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "clf.fit(X_train_random, y_train_random)\n",
+    "\n",
+    "y_pred_test_new = clf.predict(X_test)\n",
+    "test_acc_new = np.sum(y_pred_test_new.reshape([-1,1]) == np.array(y_test)) / len(y_pred_test_new)\n",
+    "test_acc_new"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 35,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "f1s_test_random = {}\n",
+    "for i, sl in enumerate(important_slices):\n",
+    "    sl_name = sl[0][0][0]\n",
+    "    dif, f1 = compare_f1(df_x_test, df_y_test, y_pred_test_new , sl[0])\n",
+    "    if i == 0:        \n",
+    "        f1s_test_random['total_acc'] = test_acc_new\n",
+    "        f1s_test_random['total_f1'] = f1 + dif\n",
+    "    f1s_test_random[f'{sl_name}_f1'] = f1"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Updated Minority Performance on Test Set"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 36,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "c:\\users\\ziv\\appdata\\local\\programs\\python\\python38\\lib\\site-packages\\xgboost\\sklearn.py:1224: UserWarning: The use of label encoder in XGBClassifier is deprecated and will be removed in a future release. To remove this warning, do the following: 1) Pass option use_label_encoder=False when constructing XGBClassifier object; and 2) Encode your labels (y) as integers starting with 0, i.e. 0, 1, 2, ..., [num_class - 1].\n",
+      "  warnings.warn(label_encoder_deprecation_msg, UserWarning)\n",
+      "c:\\users\\ziv\\appdata\\local\\programs\\python\\python38\\lib\\site-packages\\sklearn\\utils\\validation.py:63: DataConversionWarning: A column-vector y was passed when a 1d array was expected. Please change the shape of y to (n_samples, ), for example using ravel().\n",
+      "  return f(*args, **kwargs)\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "[22:38:14] WARNING: C:/Users/Administrator/workspace/xgboost-win64_release_1.5.0/src/learner.cc:1115: Starting in XGBoost 1.3.0, the default evaluation metric used with the objective 'binary:logistic' was changed from 'error' to 'logloss'. Explicitly set eval_metric if you'd like to restore the old behavior.\n"
+     ]
+    },
+    {
+     "data": {
+      "text/plain": [
+       "0.903420819817163"
+      ]
+     },
+     "execution_count": 36,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "clf.fit(X_train_new_2, y_train_new_2)\n",
+    "\n",
+    "y_pred_test_new = clf.predict(X_test)\n",
+    "test_acc_new = np.sum(y_pred_test_new.reshape([-1,1]) == np.array(y_test)) / len(y_pred_test_new)\n",
+    "test_acc_new"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 37,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "f1s_test_minority = {}\n",
+    "for i, sl in enumerate(important_slices):\n",
+    "    sl_name = sl[0][0][0]\n",
+    "    dif, f1 = compare_f1(df_x_test, df_y_test, y_pred_test_new , sl[0])\n",
+    "    if i == 0:        \n",
+    "        f1s_test_minority['total_acc'] = test_acc_new\n",
+    "        f1s_test_minority['total_f1'] = f1 + dif\n",
+    "    f1s_test_minority[f'{sl_name}_f1'] = f1"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Updated Dataset Performance on Test Set"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 38,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "c:\\users\\ziv\\appdata\\local\\programs\\python\\python38\\lib\\site-packages\\xgboost\\sklearn.py:1224: UserWarning: The use of label encoder in XGBClassifier is deprecated and will be removed in a future release. To remove this warning, do the following: 1) Pass option use_label_encoder=False when constructing XGBClassifier object; and 2) Encode your labels (y) as integers starting with 0, i.e. 0, 1, 2, ..., [num_class - 1].\n",
+      "  warnings.warn(label_encoder_deprecation_msg, UserWarning)\n",
+      "c:\\users\\ziv\\appdata\\local\\programs\\python\\python38\\lib\\site-packages\\sklearn\\utils\\validation.py:63: DataConversionWarning: A column-vector y was passed when a 1d array was expected. Please change the shape of y to (n_samples, ), for example using ravel().\n",
+      "  return f(*args, **kwargs)\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "[22:38:15] WARNING: C:/Users/Administrator/workspace/xgboost-win64_release_1.5.0/src/learner.cc:1115: Starting in XGBoost 1.3.0, the default evaluation metric used with the objective 'binary:logistic' was changed from 'error' to 'logloss'. Explicitly set eval_metric if you'd like to restore the old behavior.\n"
+     ]
+    },
+    {
+     "data": {
+      "text/plain": [
+       "0.8987024476555588"
+      ]
+     },
+     "execution_count": 38,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "clf.fit(X_train_new, y_train_new)\n",
+    "\n",
+    "y_pred_test_new = clf.predict(X_test)\n",
+    "test_acc_new = np.sum(y_pred_test_new.reshape([-1,1]) == np.array(y_test)) / len(y_pred_test_new)\n",
+    "test_acc_new"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 39,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "f1s_test_oversampled = {}\n",
+    "for i, sl in enumerate(important_slices):\n",
+    "    sl_name = sl[0][0][0]\n",
+    "    dif, f1 = compare_f1(df_x_test, df_y_test, y_pred_test_new , sl[0])\n",
+    "    if i == 0:        \n",
+    "        f1s_test_oversampled['total_acc'] = test_acc_new\n",
+    "        f1s_test_oversampled['total_f1'] = f1 + dif\n",
+    "    f1s_test_oversampled[f'{sl_name}_f1'] = f1"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Conclusion from attempted improvements"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 40,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "f1s_df = pd.DataFrame()\n",
+    "f1s_df['measure'] = f1s_val.keys()\n",
+    "# f1s_df['validation_f1'] = f1s_val.values()\n",
+    "f1s_df['Base'] = f1s_test.values()\n",
+    "f1s_df['Oversampled Random'] = f1s_test_random.values()\n",
+    "f1s_df['Oversampled Minority'] = f1s_test_minority.values()\n",
+    "f1s_df['Oversampled Balanced'] = f1s_test_oversampled.values()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 41,
+   "metadata": {
+    "scrolled": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>measure</th>\n",
+       "      <th>Base</th>\n",
+       "      <th>Oversampled Random</th>\n",
+       "      <th>Oversampled Minority</th>\n",
+       "      <th>Oversampled Balanced</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>total_acc</td>\n",
+       "      <td>0.902978</td>\n",
+       "      <td>0.902536</td>\n",
+       "      <td>0.903421</td>\n",
+       "      <td>0.898702</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>total_f1</td>\n",
+       "      <td>0.519708</td>\n",
+       "      <td>0.515751</td>\n",
+       "      <td>0.572733</td>\n",
+       "      <td>0.557060</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>previous_f1</td>\n",
+       "      <td>0.488271</td>\n",
+       "      <td>0.484689</td>\n",
+       "      <td>0.558104</td>\n",
+       "      <td>0.537764</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "       measure      Base  Oversampled Random  Oversampled Minority  \\\n",
+       "0    total_acc  0.902978            0.902536              0.903421   \n",
+       "1     total_f1  0.519708            0.515751              0.572733   \n",
+       "2  previous_f1  0.488271            0.484689              0.558104   \n",
+       "\n",
+       "   Oversampled Balanced  \n",
+       "0              0.898702  \n",
+       "1              0.557060  \n",
+       "2              0.537764  "
+      ]
+     },
+     "execution_count": 41,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "f1s_df"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.8.6"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 4
+}
