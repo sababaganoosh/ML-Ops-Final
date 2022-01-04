@@ -14,6 +14,7 @@ from xgboost import XGBClassifier
 import pickle
 import warnings
 import json
+import sys
 
 def get_categorical_features(data, dataset_label_column_name):
     cat_feats = []
@@ -186,8 +187,6 @@ def get_train_df_of_problematic_slice(x_train_raw_df, x_train_df, y_train_df, pr
 
 
 def filter_df_by_prob_label(x_train_prob_slice, y_train_prob_slice, problematic_label, dataset_label_column_name):
-    print(dataset_label_column_name)
-    print(problematic_label)
     df_filter = y_train_prob_slice[dataset_label_column_name] == problematic_label
 
     x_train_filtered_df = x_train_prob_slice[df_filter]
@@ -268,7 +267,7 @@ def run_cycle_on_validation_dataset_of_label(X_val_of_label,
         (x_train_prob_slice, y_train_prob_slice) = get_train_df_of_problematic_slice(X_train_raw, X_train, y_train,
                                                                                         problematic_slice)
         print("Extracted the problematic slice from the train dataframe")
-        print(dataset_label_column_name)
+
         (x_train_filtered_df, y_train_filtered_df) = filter_df_by_prob_label(x_train_prob_slice, y_train_prob_slice, curr_label, dataset_label_column_name)
         print("Filtered the problematic slice from the train dataframe")
 
@@ -281,9 +280,9 @@ def run_cycle_on_validation_dataset_of_label(X_val_of_label,
     return (found_prob_slice, samples_x, samples_y)
         
 
-def main_code():
+def main_code(config_file_name):
 
-    with open('otherconfig.json', 'r') as f:
+    with open(config_file_name, 'r') as f:
         config = json.load(f)
     
     print("Loaded config.json:")
@@ -446,14 +445,15 @@ def main_code():
 
     # save best model of validation to file
     pickle.dump(best_model, open("best_model.pickle.dat", "wb"))
-    print("Dumped the best model into file, exiting...")
+    print("Dumped the best model into file")
 
     # save last model to file
     pickle.dump(clf, open("last_model.pickle.dat", "wb"))
-    print("Dumped the best model into file, exiting...")
+    print("Dumped the last model into file, exiting...")
 
 
 if __name__ == "__main__":
+    config_file_name = sys.argv[1]
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        main_code()
+        main_code(config_file_name)
