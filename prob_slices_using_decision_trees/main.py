@@ -32,11 +32,8 @@ def create_tree_for_slices(x_val_df, y_val_df, xgbModel):
     y_predict = xgbModel.predict(x_val_df)
     y_predict_nparr = np.array(y_predict).flatten().reshape(-1,1)
     y_val_nparr = np.array(y_val_df).flatten().reshape(-1,1)
-
     is_correct = (y_predict_nparr == y_val_nparr) * 1
-    #print(len(is_correct), np.sum(is_correct))
     dtc_labels = pd.DataFrame(is_correct)
-    #print(dtc_labels)
     dtc = DecisionTreeClassifier(max_depth=2)
     dtc = dtc.fit(x_val_df, dtc_labels)
 
@@ -60,14 +57,28 @@ def get_dataframes_from_slices_by_tree(two_deep_tree, x_val_df, y_val_df):
     left = features_with_threshold[1]
     right = features_with_threshold[4]
 
-    df1_filter = ((x_val_df[root[0]] <= root[1]) &
-                  (x_val_df[left[0]] <= left[1]))
-    df2_filter = ((x_val_df[root[0]] <= root[1]) &
-                  (x_val_df[left[0]] > left[1]))
-    df3_filter = ((x_val_df[root[0]] > root[1]) &
-                  (x_val_df[right[0]] <= right[1]))
-    df4_filter = ((x_val_df[root[0]] > root[1]) &
-                  (x_val_df[right[0]] > right[1]))
+    df1_filter = (x_val_df[root[0]] <= root[1])
+    if left[0] != 'undefined!':
+        df2_filter = (df1_filter & (x_val_df[left[0]] > left[1]))
+        df1_filter = (df1_filter & (x_val_df[left[0]] <= left[1]))
+    else:
+        df2_filter = df1_filter
+    
+    df3_filter = (x_val_df[root[0]] > root[1])
+    if right[0] != 'undefined!':
+        df4_filter = (df3_filter & (x_val_df[right[0]] > right[1]))
+        df3_filter = (df3_filter & (x_val_df[right[0]] <= right[1]))
+    else:
+        df4_filter = df3_filter
+
+    #df1_filter = ((x_val_df[root[0]] <= root[1]) &
+    #              (x_val_df[left[0]] <= left[1]))
+    #df2_filter = ((x_val_df[root[0]] <= root[1]) &
+    #              (x_val_df[left[0]] > left[1]))
+    #df3_filter = ((x_val_df[root[0]] > root[1]) &
+    #              (x_val_df[right[0]] <= right[1]))
+    #df4_filter = ((x_val_df[root[0]] > root[1]) &
+    #              (x_val_df[right[0]] > right[1]))
 
     x_df1 = x_val_df[df1_filter]
     x_df2 = x_val_df[df2_filter]
@@ -153,12 +164,18 @@ def get_train_df_of_problematic_slice(x_train_raw_df, x_train_df, y_train_df, pr
     else:  # filter1_operation == '>'
         df_filter1 = (x_train_df[filter1_col_name] > filter1_col_val)
 
-    if filter2_operation == '<=':
-        df_filter2 = (x_train_df[filter2_col_name] <= filter2_col_val)
-    else:  # filter1_operation == '>'
-        df_filter2 = (x_train_df[filter2_col_name] > filter2_col_val)
+    if filter2_col_name != 'undefined!':
+        if filter2_operation == '<=':
+            df_filter2 = (x_train_df[filter2_col_name] <= filter2_col_val)
+        else:  # filter1_operation == '>'
+            df_filter2 = (x_train_df[filter2_col_name] > filter2_col_val)
+    else:
+        df_filter2 = None
 
-    df_filter = df_filter1 & df_filter2
+    if df_filter2 is not None:
+         df_filter = df_filter1 & df_filter2
+    else:
+        df_filter = df_filter1
 
     x_train_prob_slice = x_train_raw_df[df_filter]
     y_train_prob_slice = y_train_df[df_filter]
@@ -169,6 +186,8 @@ def get_train_df_of_problematic_slice(x_train_raw_df, x_train_df, y_train_df, pr
 
 
 def filter_df_by_prob_label(x_train_prob_slice, y_train_prob_slice, problematic_label, dataset_label_column_name):
+    print(dataset_label_column_name)
+    print(problematic_label)
     df_filter = y_train_prob_slice[dataset_label_column_name] == problematic_label
 
     x_train_filtered_df = x_train_prob_slice[df_filter]
@@ -191,7 +210,7 @@ def extract_discrete_columns_from_data(data, threshold=20):
     return discrete_columns
 
 
-def generate_synthetic_data_from_slice(x_data, y_data, num_samples_to_generate, dataset_label_column_name, num_epochs=10, discrete_columns=None):
+def generate_synthetic_data_from_slice(x_data, y_data, num_samples_to_generate, dataset_label_column_name, should_use_ctgan, num_epochs=10, discrete_columns=None):
 
     print("Training CTGAN on problematic slice")
 
@@ -199,15 +218,16 @@ def generate_synthetic_data_from_slice(x_data, y_data, num_samples_to_generate, 
     y_df_cp = y_data.copy(deep=True)
     df_cp[dataset_label_column_name] = y_df_cp
 
-    samples = df_cp.sample(n=num_samples_to_generate)
+    if should_use_ctgan:
+        if discrete_columns is None:
+            discrete_columns = extract_discrete_columns_from_data(df_cp)
 
-    #if discrete_columns is None:
-    #    discrete_columns = extract_discrete_columns_from_data(df_cp)
+        ctgan = CTGANSynthesizer(epochs=num_epochs)
+        ctgan.fit(df_cp, discrete_columns)
 
-    #ctgan = CTGANSynthesizer(epochs=num_epochs)
-    #ctgan.fit(df_cp, discrete_columns)
-
-    #samples = ctgan.sample(num_samples_to_generate)
+        samples = ctgan.sample(num_samples_to_generate)
+    else:
+        samples = df_cp.sample(n=num_samples_to_generate)
 
     print(f"Generated {num_samples_to_generate} new samples for the problematic slice")
 
@@ -227,6 +247,7 @@ def run_cycle_on_validation_dataset_of_label(X_val_of_label,
                                              y_train, 
                                              curr_label, 
                                              dataset_label_column_name, 
+                                             should_use_ctgan,
                                              ctgan_num_epochs, 
                                              synthetic_samples_to_generate_percent,
                                              accuracy_threshold):
@@ -247,13 +268,13 @@ def run_cycle_on_validation_dataset_of_label(X_val_of_label,
         (x_train_prob_slice, y_train_prob_slice) = get_train_df_of_problematic_slice(X_train_raw, X_train, y_train,
                                                                                         problematic_slice)
         print("Extracted the problematic slice from the train dataframe")
-
+        print(dataset_label_column_name)
         (x_train_filtered_df, y_train_filtered_df) = filter_df_by_prob_label(x_train_prob_slice, y_train_prob_slice, curr_label, dataset_label_column_name)
         print("Filtered the problematic slice from the train dataframe")
 
         num_samples_to_generate = int(len(x_train_filtered_df) * synthetic_samples_to_generate_percent)
         
-        (samples_x, samples_y) = generate_synthetic_data_from_slice(x_train_filtered_df, y_train_filtered_df, num_samples_to_generate, dataset_label_column_name, ctgan_num_epochs)
+        (samples_x, samples_y) = generate_synthetic_data_from_slice(x_train_filtered_df, y_train_filtered_df, num_samples_to_generate, dataset_label_column_name, should_use_ctgan, ctgan_num_epochs)
         print("Generated new samples from the problematic slice")
     else:
         (samples_x, samples_y) = (None, None)
@@ -262,7 +283,7 @@ def run_cycle_on_validation_dataset_of_label(X_val_of_label,
 
 def main_code():
 
-    with open('config.json', 'r') as f:
+    with open('otherconfig.json', 'r') as f:
         config = json.load(f)
     
     print("Loaded config.json:")
@@ -278,9 +299,14 @@ def main_code():
     dataset_label_column_name = config["dataset_label_column_name"]
     problematic_label = config["problematic_label"]
     synthetic_samples_to_generate_percent = config["synthetic_samples_to_generate_percent"]
+    should_use_ctgan = config["should_use_ctgan"]
     ctgan_num_epochs = config["ctgan_num_epochs"]
     metric_to_use_name = config["metric_to_use_name"]
     should_generate_data_from_both_labels = config["should_generate_data_from_both_labels"]
+    dataset_contains_column_names = config["dataset_contains_column_names"]
+    dataset_column_names = config["dataset_column_names"]
+    dataset_label_values = config["dataset_label_values"]
+    dataset_label_replace_with = config["dataset_label_replace_with"]
 
     if metric_to_use_name == "f1":
         metric_to_use = metrics.f1_score
@@ -294,11 +320,18 @@ def main_code():
     print("Starting...")
 
     # Importing and displaying data
-    data = pd.read_csv(dataset_path, delimiter=";", header='infer')
+    if dataset_contains_column_names:
+        data = pd.read_csv(dataset_path, delimiter=";", header='infer')
+    else:
+        data = pd.read_csv(dataset_path, names = dataset_column_names, delimiter=' ')
     print("Completed Dataset Loading")
 
     # Since y is a class variable we will have to convert it into binary format. (Since 2 unique class values)
-    data[dataset_label_column_name].replace(('yes', 'no'), (1, 0), inplace=True)
+    data[dataset_label_column_name].replace(dataset_label_values, dataset_label_replace_with, inplace=True)
+
+    cat_feats = get_categorical_features(data, dataset_label_column_name)
+
+    data_columns_list = pd.get_dummies(data, columns=cat_feats).columns
 
     # Spliting data as X -> features and y -> class variable
     data_y = pd.DataFrame(data[dataset_label_column_name])
@@ -313,10 +346,14 @@ def main_code():
                          stratify=y_train)
     print("Split train/test/val")
 
-    cat_feats = get_categorical_features(data, dataset_label_column_name)
-
     X_val = pd.get_dummies(X_val_raw, columns=cat_feats)
     X_test = pd.get_dummies(X_test_raw, columns=cat_feats)
+
+    for i in range(len(data_columns_list)):
+        if data_columns_list[i] != dataset_label_column_name and data_columns_list[i] not in X_val:
+            X_val[data_columns_list[i]] = 0
+        if data_columns_list[i] != dataset_label_column_name and data_columns_list[i] not in X_test:
+            X_test[data_columns_list[i]] = 0
 
     val_label_1_filter = y_val[dataset_label_column_name] == 1
     val_label_0_filter = y_val[dataset_label_column_name] == 0
@@ -337,7 +374,6 @@ def main_code():
 
         # Create an XGB classifier and train it on 70% of the data set.
         clf = XGBClassifier()
-
         clf.fit(X_train, y_train)
         print("Fit XGBClassifier")
 
@@ -363,14 +399,14 @@ def main_code():
         if should_run_on_label_1:
             (found_prob_slice_1, samples_x_1, samples_y_1) = run_cycle_on_validation_dataset_of_label(X_val_1, y_val_1, clf, 
                 metric_to_use, len(X_val_1), min_support, X_train_raw, X_train, y_train, 1, dataset_label_column_name, 
-                ctgan_num_epochs, synthetic_samples_to_generate_percent, accuracy_threshold)
+                should_use_ctgan, ctgan_num_epochs, synthetic_samples_to_generate_percent, accuracy_threshold)
 
             print("Finished cycle for label 1")
         
         if should_run_on_label_0:
             (found_prob_slice_0, samples_x_0, samples_y_0) = run_cycle_on_validation_dataset_of_label(X_val_0, y_val_0, clf, 
                 metric_to_use, len(X_val_0), min_support, X_train_raw, X_train, y_train, 0, 
-                dataset_label_column_name, ctgan_num_epochs, synthetic_samples_to_generate_percent, accuracy_threshold)
+                dataset_label_column_name, should_use_ctgan, ctgan_num_epochs, synthetic_samples_to_generate_percent, accuracy_threshold)
             print("Finished cycle for label 0")
         
         if should_run_on_label_1 and found_prob_slice_1:
@@ -408,8 +444,12 @@ def main_code():
         best_model = clf
         best_model_acc = curr_acc
 
-    # save model to file
+    # save best model of validation to file
     pickle.dump(best_model, open("best_model.pickle.dat", "wb"))
+    print("Dumped the best model into file, exiting...")
+
+    # save last model to file
+    pickle.dump(clf, open("last_model.pickle.dat", "wb"))
     print("Dumped the best model into file, exiting...")
 
 
