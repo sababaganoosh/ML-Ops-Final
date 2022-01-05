@@ -2,7 +2,7 @@
     "validation_size": 0.15,
     "test_size": 0.15,
     "min_support": 0.05,
-    "iterations": 10,
+    "iterations": 5,
     "dataset_path": "./datasets/german.data",
 	"dataset_contains_column_names": false,
 	"dataset_column_names": [
@@ -32,7 +32,7 @@
 	"dataset_label_values": [1, 2],
 	"dataset_label_replace_with": [1, 0],
     "problematic_label": 0,
-    "synthetic_samples_to_generate_percent": 0.5,
+    "synthetic_samples_to_generate_percent": 1,
 	"should_use_ctgan": false,
 	"ctgan_num_epochs": 10,
 	"metric_to_use_name": "f1",

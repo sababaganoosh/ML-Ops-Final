@@ -1,0 +1,485 @@
+
+C:\Users\User\git\ML-Ops-Final\prob_slices_using_decision_trees>python main.py config.json
+Loaded config.json:
+{'validation_size': 0.15, 'test_size': 0.15, 'min_support': 0.05, 'iterations': 8, 'dataset_path': './datasets/bank-full.csv', 'dataset_contains_column_names': True, 'dataset_column_names': [], 'dataset_label_column_name': 'y', 'dataset_label_values': ['yes', 'no'], 'dataset_label_replace_with': [1, 0], 'problematic_label': 1, 'synthetic_samples_to_generate_percent': 0.5, 'should_use_ctgan': False, 'ctgan_num_epochs': 10, 'metric_to_use_name': 'f1', 'should_generate_data_from_both_labels': False}
+Starting...
+Completed Dataset Loading
+Categorical features:
+['job', 'marital', 'education', 'default', 'housing', 'loan', 'contact', 'month', 'poutcome']
+Split train/test/val
+Done preprocessing
+Starting iteration #1
+[19:21:44] WARNING: C:/Users/Administrator/workspace/xgboost-win64_release_1.5.1/src/learner.cc:1115: Starting in XGBoost 1.3.0, the default evaluation metric used with the objective 'binary:logistic' was changed from 'error' to 'logloss'. Explicitly set eval_metric if you'd like to restore the old behavior.
+Fit XGBClassifier
+Regular Baseline Model Classification Report On Validation Dataset:
+              precision    recall  f1-score   support
+
+           0     0.9344    0.9609    0.9475      5989
+           1     0.6244    0.4905    0.5494       793
+
+    accuracy                         0.9059      6782
+   macro avg     0.7794    0.7257    0.7485      6782
+weighted avg     0.8982    0.9059    0.9009      6782
+
+Regular Baseline Model Classification Report On Test Dataset:
+              precision    recall  f1-score   support
+
+           0     0.9296    0.9631    0.9460      5989
+           1     0.6170    0.4489    0.5197       793
+
+    accuracy                         0.9030      6782
+   macro avg     0.7733    0.7060    0.7329      6782
+weighted avg     0.8930    0.9030    0.8962      6782
+
+Accuracy threshold: 0.5494350282485876
+Created Decision Tree Classifier for finding problematic slices
+[('poutcome_success', 0.5), ('duration', 866.5), ('undefined!', -2.0), ('undefined!', -2.0), ('duration', 160.0), ('undefined!', -2.0), ('undefined!', -2.0)]
+Slices of tree filter descriptions:
+[('poutcome_success', '<=', 0.5), ('duration', '<=', 866.5)]
+[('poutcome_success', '<=', 0.5), ('duration', '>', 866.5)]
+[('poutcome_success', '>', 0.5), ('duration', '<=', 160.0)]
+[('poutcome_success', '>', 0.5), ('duration', '>', 160.0)]
+Extracted the slices by the tree leaves
+Accuracy of slice #1 is: 0.5050215208034433
+Accuracy of slice #2 is: 0.8348623853211008
+Accuracy of slice #3 is: 0.5
+Accuracy of slice #4 is: 0.9783549783549783
+Calculated accuracy of each slice
+Min size threshold: 39.650000000000006
+Slice #1, Accuracy of 0.5050215208034433 and size of 521
+Slice #2, Accuracy of 0.8348623853211008 and size of 127
+Slice #3, Accuracy of 0.5 and size of 27
+Slice #4, Accuracy of 0.9783549783549783 and size of 118
+Most problematic slice index: 1
+Chose the most problematic slice
+Filter #1: poutcome_success <= 0.5
+Filter #2: duration <= 866.5
+Train problematic slice size: 29516
+Extracted the problematic slice from the train dataframe
+Train problematic slice size after label filer: 2385
+Filtered the problematic slice from the train dataframe
+Training CTGAN on problematic slice
+Generated 1192 new samples for the problematic slice
+Generated new samples from the problematic slice
+Finished cycle for label 1
+Added new samples to the train dataframe
+going back...
+Starting iteration #2
+[19:21:45] WARNING: C:/Users/Administrator/workspace/xgboost-win64_release_1.5.1/src/learner.cc:1115: Starting in XGBoost 1.3.0, the default evaluation metric used with the objective 'binary:logistic' was changed from 'error' to 'logloss'. Explicitly set eval_metric if you'd like to restore the old behavior.
+Fit XGBClassifier
+Regular Baseline Model Classification Report On Validation Dataset:
+              precision    recall  f1-score   support
+
+           0     0.9395    0.9536    0.9465      5989
+           1     0.6046    0.5359    0.5682       793
+
+    accuracy                         0.9047      6782
+   macro avg     0.7720    0.7448    0.7573      6782
+weighted avg     0.9003    0.9047    0.9022      6782
+
+Regular Baseline Model Classification Report On Test Dataset:
+              precision    recall  f1-score   support
+
+           0     0.9372    0.9511    0.9441      5989
+           1     0.5838    0.5183    0.5491       793
+
+    accuracy                         0.9005      6782
+   macro avg     0.7605    0.7347    0.7466      6782
+weighted avg     0.8958    0.9005    0.8979      6782
+
+Accuracy threshold: 0.5681818181818182
+Created Decision Tree Classifier for finding problematic slices
+[('poutcome_success', 0.5), ('duration', 835.0), ('undefined!', -2.0), ('undefined!', -2.0), ('duration', 160.0), ('undefined!', -2.0), ('undefined!', -2.0)]
+Slices of tree filter descriptions:
+[('poutcome_success', '<=', 0.5), ('duration', '<=', 835.0)]
+[('poutcome_success', '<=', 0.5), ('duration', '>', 835.0)]
+[('poutcome_success', '>', 0.5), ('duration', '<=', 160.0)]
+[('poutcome_success', '>', 0.5), ('duration', '>', 160.0)]
+Extracted the slices by the tree leaves
+Accuracy of slice #1 is: 0.5702247191011236
+Accuracy of slice #2 is: 0.8464730290456433
+Accuracy of slice #3 is: 0.45714285714285713
+Accuracy of slice #4 is: 0.9739130434782608
+Calculated accuracy of each slice
+Min size threshold: 39.650000000000006
+Slice #1, Accuracy of 0.5702247191011236 and size of 509
+Slice #2, Accuracy of 0.8464730290456433 and size of 139
+Slice #3, Accuracy of 0.45714285714285713 and size of 27
+Slice #4, Accuracy of 0.9739130434782608 and size of 118
+Most problematic slice index: 1
+Chose the most problematic slice
+Filter #1: poutcome_success <= 0.5
+Filter #2: duration <= 835.0
+Train problematic slice size: 30585
+Extracted the problematic slice from the train dataframe
+Train problematic slice size after label filer: 3501
+Filtered the problematic slice from the train dataframe
+Training CTGAN on problematic slice
+Generated 1750 new samples for the problematic slice
+Generated new samples from the problematic slice
+Finished cycle for label 1
+Added new samples to the train dataframe
+going back...
+Starting iteration #3
+[19:21:46] WARNING: C:/Users/Administrator/workspace/xgboost-win64_release_1.5.1/src/learner.cc:1115: Starting in XGBoost 1.3.0, the default evaluation metric used with the objective 'binary:logistic' was changed from 'error' to 'logloss'. Explicitly set eval_metric if you'd like to restore the old behavior.
+Fit XGBClassifier
+Regular Baseline Model Classification Report On Validation Dataset:
+              precision    recall  f1-score   support
+
+           0     0.9477    0.9471    0.9474      5989
+           1     0.6023    0.6053    0.6038       793
+
+    accuracy                         0.9071      6782
+   macro avg     0.7750    0.7762    0.7756      6782
+weighted avg     0.9073    0.9071    0.9072      6782
+
+Regular Baseline Model Classification Report On Test Dataset:
+              precision    recall  f1-score   support
+
+           0     0.9403    0.9449    0.9426      5989
+           1     0.5681    0.5473    0.5575       793
+
+    accuracy                         0.8984      6782
+   macro avg     0.7542    0.7461    0.7500      6782
+weighted avg     0.8968    0.8984    0.8976      6782
+
+Accuracy threshold: 0.6037735849056604
+Created Decision Tree Classifier for finding problematic slices
+[('duration', 160.5), ('duration', 120.5), ('undefined!', -2.0), ('undefined!', -2.0), ('poutcome_success', 0.5), ('undefined!', -2.0), ('undefined!', -2.0)]
+Slices of tree filter descriptions:
+[('duration', '<=', 160.5), ('duration', '<=', 120.5)]
+[('duration', '<=', 160.5), ('duration', '>', 120.5)]
+[('duration', '>', 160.5), ('poutcome_success', '<=', 0.5)]
+[('duration', '>', 160.5), ('poutcome_success', '>', 0.5)]
+Extracted the slices by the tree leaves
+Accuracy of slice #1 is: 0.16666666666666669
+Accuracy of slice #2 is: 0.5897435897435896
+Accuracy of slice #3 is: 0.7389903329752954
+Accuracy of slice #4 is: 0.9649122807017544
+Calculated accuracy of each slice
+Min size threshold: 39.650000000000006
+Slice #1, Accuracy of 0.16666666666666669 and size of 33
+Slice #2, Accuracy of 0.5897435897435896 and size of 55
+Slice #3, Accuracy of 0.7389903329752954 and size of 587
+Slice #4, Accuracy of 0.9649122807017544 and size of 118
+Most problematic slice index: 2
+Chose the most problematic slice
+Filter #1: duration <= 160.5
+Filter #2: duration > 120.5
+Train problematic slice size: 4417
+Extracted the problematic slice from the train dataframe
+Train problematic slice size after label filer: 435
+Filtered the problematic slice from the train dataframe
+Training CTGAN on problematic slice
+Generated 217 new samples for the problematic slice
+Generated new samples from the problematic slice
+Finished cycle for label 1
+Added new samples to the train dataframe
+going back...
+Starting iteration #4
+[19:21:47] WARNING: C:/Users/Administrator/workspace/xgboost-win64_release_1.5.1/src/learner.cc:1115: Starting in XGBoost 1.3.0, the default evaluation metric used with the objective 'binary:logistic' was changed from 'error' to 'logloss'. Explicitly set eval_metric if you'd like to restore the old behavior.
+Fit XGBClassifier
+Regular Baseline Model Classification Report On Validation Dataset:
+              precision    recall  f1-score   support
+
+           0     0.9473    0.9451    0.9462      5989
+           1     0.5923    0.6028    0.5975       793
+
+    accuracy                         0.9050      6782
+   macro avg     0.7698    0.7739    0.7718      6782
+weighted avg     0.9058    0.9050    0.9054      6782
+
+Regular Baseline Model Classification Report On Test Dataset:
+              precision    recall  f1-score   support
+
+           0     0.9422    0.9421    0.9421      5989
+           1     0.5630    0.5637    0.5633       793
+
+    accuracy                         0.8978      6782
+   macro avg     0.7526    0.7529    0.7527      6782
+weighted avg     0.8979    0.8978    0.8978      6782
+
+Accuracy threshold: 0.6037735849056604
+Created Decision Tree Classifier for finding problematic slices
+[('duration', 134.5), ('age', 19.5), ('undefined!', -2.0), ('undefined!', -2.0), ('poutcome_success', 0.5), ('undefined!', -2.0), ('undefined!', -2.0)]
+Slices of tree filter descriptions:
+[('duration', '<=', 134.5), ('age', '<=', 19.5)]
+[('duration', '<=', 134.5), ('age', '>', 19.5)]
+[('duration', '>', 134.5), ('poutcome_success', '<=', 0.5)]
+[('duration', '>', 134.5), ('poutcome_success', '>', 0.5)]
+Extracted the slices by the tree leaves
+Accuracy of slice #1 is: 1.0
+Accuracy of slice #2 is: 0.19999999999999998
+Accuracy of slice #3 is: 0.73305954825462
+Accuracy of slice #4 is: 0.9387755102040816
+Calculated accuracy of each slice
+Min size threshold: 39.650000000000006
+Slice #1, Accuracy of 1.0 and size of 1
+Slice #2, Accuracy of 0.19999999999999998 and size of 45
+Slice #3, Accuracy of 0.73305954825462 and size of 617
+Slice #4, Accuracy of 0.9387755102040816 and size of 130
+Most problematic slice index: 2
+Chose the most problematic slice
+Filter #1: duration <= 134.5
+Filter #2: age > 19.5
+Train problematic slice size: 11676
+Extracted the problematic slice from the train dataframe
+Train problematic slice size after label filer: 491
+Filtered the problematic slice from the train dataframe
+Training CTGAN on problematic slice
+Generated 245 new samples for the problematic slice
+Generated new samples from the problematic slice
+Finished cycle for label 1
+Added new samples to the train dataframe
+going back...
+Starting iteration #5
+[19:21:48] WARNING: C:/Users/Administrator/workspace/xgboost-win64_release_1.5.1/src/learner.cc:1115: Starting in XGBoost 1.3.0, the default evaluation metric used with the objective 'binary:logistic' was changed from 'error' to 'logloss'. Explicitly set eval_metric if you'd like to restore the old behavior.
+Fit XGBClassifier
+Regular Baseline Model Classification Report On Validation Dataset:
+              precision    recall  f1-score   support
+
+           0     0.9467    0.9427    0.9447      5989
+           1     0.5807    0.5990    0.5897       793
+
+    accuracy                         0.9025      6782
+   macro avg     0.7637    0.7709    0.7672      6782
+weighted avg     0.9039    0.9025    0.9032      6782
+
+Regular Baseline Model Classification Report On Test Dataset:
+              precision    recall  f1-score   support
+
+           0     0.9427    0.9416    0.9421      5989
+           1     0.5625    0.5675    0.5650       793
+
+    accuracy                         0.8978      6782
+   macro avg     0.7526    0.7545    0.7535      6782
+weighted avg     0.8982    0.8978    0.8980      6782
+
+Accuracy threshold: 0.6037735849056604
+Created Decision Tree Classifier for finding problematic slices
+[('poutcome_success', 0.5), ('duration', 129.0), ('undefined!', -2.0), ('undefined!', -2.0), ('duration', 180.0), ('undefined!', -2.0), ('undefined!', -2.0)]
+Slices of tree filter descriptions:
+[('poutcome_success', '<=', 0.5), ('duration', '<=', 129.0)]
+[('poutcome_success', '<=', 0.5), ('duration', '>', 129.0)]
+[('poutcome_success', '>', 0.5), ('duration', '<=', 180.0)]
+[('poutcome_success', '>', 0.5), ('duration', '>', 180.0)]
+Extracted the slices by the tree leaves
+Accuracy of slice #1 is: 0.07407407407407407
+Accuracy of slice #2 is: 0.7227926078028747
+Accuracy of slice #3 is: 0.6
+Accuracy of slice #4 is: 0.9861751152073733
+Calculated accuracy of each slice
+Min size threshold: 39.650000000000006
+Slice #1, Accuracy of 0.07407407407407407 and size of 26
+Slice #2, Accuracy of 0.7227926078028747 and size of 622
+Slice #3, Accuracy of 0.6 and size of 35
+Slice #4, Accuracy of 0.9861751152073733 and size of 110
+Most problematic slice index: 2
+Chose the most problematic slice
+Filter #1: poutcome_success <= 0.5
+Filter #2: duration > 129.0
+Train problematic slice size: 22762
+Extracted the problematic slice from the train dataframe
+Train problematic slice size after label filer: 5796
+Filtered the problematic slice from the train dataframe
+Training CTGAN on problematic slice
+Generated 2898 new samples for the problematic slice
+Generated new samples from the problematic slice
+Finished cycle for label 1
+Added new samples to the train dataframe
+going back...
+Starting iteration #6
+[19:21:49] WARNING: C:/Users/Administrator/workspace/xgboost-win64_release_1.5.1/src/learner.cc:1115: Starting in XGBoost 1.3.0, the default evaluation metric used with the objective 'binary:logistic' was changed from 'error' to 'logloss'. Explicitly set eval_metric if you'd like to restore the old behavior.
+Fit XGBClassifier
+Regular Baseline Model Classification Report On Validation Dataset:
+              precision    recall  f1-score   support
+
+           0     0.9558    0.9287    0.9421      5989
+           1     0.5566    0.6759    0.6105       793
+
+    accuracy                         0.8991      6782
+   macro avg     0.7562    0.8023    0.7763      6782
+weighted avg     0.9092    0.8991    0.9033      6782
+
+Regular Baseline Model Classification Report On Test Dataset:
+              precision    recall  f1-score   support
+
+           0     0.9517    0.9282    0.9398      5989
+           1     0.5430    0.6444    0.5894       793
+
+    accuracy                         0.8950      6782
+   macro avg     0.7474    0.7863    0.7646      6782
+weighted avg     0.9039    0.8950    0.8988      6782
+
+Accuracy threshold: 0.6104783599088838
+Created Decision Tree Classifier for finding problematic slices
+[('duration', 120.5), ('age', 19.5), ('undefined!', -2.0), ('undefined!', -2.0), ('duration', 662.0), ('undefined!', -2.0), ('undefined!', -2.0)]
+Slices of tree filter descriptions:
+[('duration', '<=', 120.5), ('age', '<=', 19.5)]
+[('duration', '<=', 120.5), ('age', '>', 19.5)]
+[('duration', '>', 120.5), ('duration', '<=', 662.0)]
+[('duration', '>', 120.5), ('duration', '>', 662.0)]
+Extracted the slices by the tree leaves
+Accuracy of slice #1 is: 1.0
+Accuracy of slice #2 is: 0.17142857142857143
+Accuracy of slice #3 is: 0.7772621809744779
+Accuracy of slice #4 is: 0.9162790697674419
+Calculated accuracy of each slice
+Min size threshold: 39.650000000000006
+Slice #1, Accuracy of 1.0 and size of 1
+Slice #2, Accuracy of 0.17142857142857143 and size of 32
+Slice #3, Accuracy of 0.7772621809744779 and size of 527
+Slice #4, Accuracy of 0.9162790697674419 and size of 233
+Most problematic slice index: 3
+Chose the most problematic slice
+Filter #1: duration > 120.5
+Filter #2: duration <= 662.0
+Train problematic slice size: 24517
+Extracted the problematic slice from the train dataframe
+Train problematic slice size after label filer: 7291
+Filtered the problematic slice from the train dataframe
+Training CTGAN on problematic slice
+Generated 3645 new samples for the problematic slice
+Generated new samples from the problematic slice
+Finished cycle for label 1
+Added new samples to the train dataframe
+going back...
+Starting iteration #7
+[19:21:51] WARNING: C:/Users/Administrator/workspace/xgboost-win64_release_1.5.1/src/learner.cc:1115: Starting in XGBoost 1.3.0, the default evaluation metric used with the objective 'binary:logistic' was changed from 'error' to 'logloss'. Explicitly set eval_metric if you'd like to restore the old behavior.
+Fit XGBClassifier
+Regular Baseline Model Classification Report On Validation Dataset:
+              precision    recall  f1-score   support
+
+           0     0.9609    0.9162    0.9380      5989
+           1     0.5317    0.7188    0.6113       793
+
+    accuracy                         0.8931      6782
+   macro avg     0.7463    0.8175    0.7746      6782
+weighted avg     0.9108    0.8931    0.8998      6782
+
+Regular Baseline Model Classification Report On Test Dataset:
+              precision    recall  f1-score   support
+
+           0     0.9540    0.9148    0.9340      5989
+           1     0.5091    0.6671    0.5775       793
+
+    accuracy                         0.8859      6782
+   macro avg     0.7316    0.7910    0.7558      6782
+weighted avg     0.9020    0.8859    0.8923      6782
+
+Accuracy threshold: 0.6112600536193029
+Created Decision Tree Classifier for finding problematic slices
+[('duration', 124.0), ('month_feb', 0.5), ('undefined!', -2.0), ('undefined!', -2.0), ('contact_unknown', 0.5), ('undefined!', -2.0), ('undefined!', -2.0)]
+Slices of tree filter descriptions:
+[('duration', '<=', 124.0), ('month_feb', '<=', 0.5)]
+[('duration', '<=', 124.0), ('month_feb', '>', 0.5)]
+[('duration', '>', 124.0), ('contact_unknown', '<=', 0.5)]
+[('duration', '>', 124.0), ('contact_unknown', '>', 0.5)]
+Extracted the slices by the tree leaves
+Accuracy of slice #1 is: 0.13333333333333333
+Accuracy of slice #2 is: 0.6666666666666666
+Accuracy of slice #3 is: 0.8717518860016765
+Accuracy of slice #4 is: 0.6870229007633588
+Calculated accuracy of each slice
+Min size threshold: 39.650000000000006
+Slice #1, Accuracy of 0.13333333333333333 and size of 28
+Slice #2, Accuracy of 0.6666666666666666 and size of 6
+Slice #3, Accuracy of 0.8717518860016765 and size of 673
+Slice #4, Accuracy of 0.6870229007633588 and size of 86
+Most problematic slice index: 4
+Chose the most problematic slice
+Filter #1: duration > 124.0
+Filter #2: contact_unknown > 0.5
+Train problematic slice size: 6824
+Extracted the problematic slice from the train dataframe
+Train problematic slice size after label filer: 1086
+Filtered the problematic slice from the train dataframe
+Training CTGAN on problematic slice
+Generated 543 new samples for the problematic slice
+Generated new samples from the problematic slice
+Finished cycle for label 1
+Added new samples to the train dataframe
+going back...
+Starting iteration #8
+[19:21:52] WARNING: C:/Users/Administrator/workspace/xgboost-win64_release_1.5.1/src/learner.cc:1115: Starting in XGBoost 1.3.0, the default evaluation metric used with the objective 'binary:logistic' was changed from 'error' to 'logloss'. Explicitly set eval_metric if you'd like to restore the old behavior.
+Fit XGBClassifier
+Regular Baseline Model Classification Report On Validation Dataset:
+              precision    recall  f1-score   support
+
+           0     0.9597    0.9145    0.9366      5989
+           1     0.5237    0.7100    0.6028       793
+
+    accuracy                         0.8906      6782
+   macro avg     0.7417    0.8122    0.7697      6782
+weighted avg     0.9087    0.8906    0.8975      6782
+
+Regular Baseline Model Classification Report On Test Dataset:
+              precision    recall  f1-score   support
+
+           0     0.9549    0.9147    0.9343      5989
+           1     0.5110    0.6734    0.5811       793
+
+    accuracy                         0.8865      6782
+   macro avg     0.7329    0.7940    0.7577      6782
+weighted avg     0.9030    0.8865    0.8930      6782
+
+Accuracy threshold: 0.6112600536193029
+Created Decision Tree Classifier for finding problematic slices
+[('duration', 120.5), ('job_services', 0.5), ('undefined!', -2.0), ('undefined!', -2.0), ('balance', 34.5), ('undefined!', -2.0), ('undefined!', -2.0)]
+Slices of tree filter descriptions:
+[('duration', '<=', 120.5), ('job_services', '<=', 0.5)]
+[('duration', '<=', 120.5), ('job_services', '>', 0.5)]
+[('duration', '>', 120.5), ('balance', '<=', 34.5)]
+[('duration', '>', 120.5), ('balance', '>', 34.5)]
+Extracted the slices by the tree leaves
+Accuracy of slice #1 is: 0.17142857142857143
+Accuracy of slice #2 is: 1.0
+Accuracy of slice #3 is: 0.6823529411764707
+Accuracy of slice #4 is: 0.8720626631853786
+Calculated accuracy of each slice
+Min size threshold: 39.650000000000006
+Slice #1, Accuracy of 0.17142857142857143 and size of 32
+Slice #2, Accuracy of 1.0 and size of 1
+Slice #3, Accuracy of 0.6823529411764707 and size of 112
+Slice #4, Accuracy of 0.8720626631853786 and size of 648
+Most problematic slice index: 3
+Chose the most problematic slice
+Filter #1: duration > 120.5
+Filter #2: balance <= 34.5
+Train problematic slice size: 5742
+Extracted the problematic slice from the train dataframe
+Train problematic slice size after label filer: 1652
+Filtered the problematic slice from the train dataframe
+Training CTGAN on problematic slice
+Generated 826 new samples for the problematic slice
+Generated new samples from the problematic slice
+Finished cycle for label 1
+Added new samples to the train dataframe
+going back...
+Finished all iterations, printing final models results:
+[19:21:53] WARNING: C:/Users/Administrator/workspace/xgboost-win64_release_1.5.1/src/learner.cc:1115: Starting in XGBoost 1.3.0, the default evaluation metric used with the objective 'binary:logistic' was changed from 'error' to 'logloss'. Explicitly set eval_metric if you'd like to restore the old behavior.
+Fit XGBClassifier
+Regular Baseline Model Classification Report On Validation Dataset:
+              precision    recall  f1-score   support
+
+           0     0.9620    0.9123    0.9365      5989
+           1     0.5236    0.7276    0.6090       793
+
+    accuracy                         0.8907      6782
+   macro avg     0.7428    0.8200    0.7727      6782
+weighted avg     0.9107    0.8907    0.8982      6782
+
+Regular Baseline Model Classification Report On Test Dataset:
+              precision    recall  f1-score   support
+
+           0     0.9575    0.9112    0.9338      5989
+           1     0.5088    0.6948    0.5874       793
+
+    accuracy                         0.8859      6782
+   macro avg     0.7332    0.8030    0.7606      6782
+weighted avg     0.9051    0.8859    0.8933      6782
+
+Dumped the best model into file
+Dumped the last model into file, exiting...
+
+C:\Users\User\git\ML-Ops-Final\prob_slices_using_decision_trees>

@@ -2,7 +2,7 @@
     "validation_size": 0.15,
     "test_size": 0.15,
     "min_support": 0.05,
-    "iterations": 10,
+    "iterations": 8,
     "dataset_path": "./datasets/bank-full.csv",
 	"dataset_contains_column_names": true,
 	"dataset_column_names": [],

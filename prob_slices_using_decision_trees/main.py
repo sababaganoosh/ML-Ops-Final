@@ -72,15 +72,6 @@ def get_dataframes_from_slices_by_tree(two_deep_tree, x_val_df, y_val_df):
     else:
         df4_filter = df3_filter
 
-    #df1_filter = ((x_val_df[root[0]] <= root[1]) &
-    #              (x_val_df[left[0]] <= left[1]))
-    #df2_filter = ((x_val_df[root[0]] <= root[1]) &
-    #              (x_val_df[left[0]] > left[1]))
-    #df3_filter = ((x_val_df[root[0]] > root[1]) &
-    #              (x_val_df[right[0]] <= right[1]))
-    #df4_filter = ((x_val_df[root[0]] > root[1]) &
-    #              (x_val_df[right[0]] > right[1]))
-
     x_df1 = x_val_df[df1_filter]
     x_df2 = x_val_df[df2_filter]
     x_df3 = x_val_df[df3_filter]
@@ -136,8 +127,6 @@ def get_most_problematic_slice(slices_with_accuracy, min_size_threshold, accurac
         print(f"Slice #{i+1}, Accuracy of {accuracy_of_slice} and size of {size_of_slice}")
         if size_of_slice < min_size_threshold:
             continue
-        #if accuracy_of_slice > accuracy_threshold:
-        #    continue
 
         slice_score = 1 / (accuracy_of_slice)
 
@@ -277,8 +266,24 @@ def run_cycle_on_validation_dataset_of_label(X_val_of_label,
         print("Generated new samples from the problematic slice")
     else:
         (samples_x, samples_y) = (None, None)
+
+    ## REMOVE
+    X_train_raw = X_train_raw.append(samples_x)
+    y_train = y_train.append(samples_y)
+    X_train = pd.get_dummies(X_train_raw, columns=cat_feats)
+
+    # Create an XGB classifier and train it on 70% of the data set.
+    clf = XGBClassifier()
+    clf.fit(X_train, y_train)
+    print("Fit XGBClassifier")
+
+    slices_with_accuracy = get_acc_of_each_slice(slices_dataframes, clf, metric_to_use)
+
+    #print(slices_with_accuracy)
+    
     return (found_prob_slice, samples_x, samples_y)
         
+cat_feats = None
 
 def main_code(config_file_name):
 
@@ -364,36 +369,36 @@ def main_code(config_file_name):
 
     print("Done preprocessing")
 
-    best_model_acc = 0
+    X_train = pd.get_dummies(X_train_raw, columns=cat_feats)
+
+    # Create an XGB classifier and train it on 70% of the data set.
+    clf = XGBClassifier()
+    clf.fit(X_train, y_train)
+    print("Fit XGBClassifier")
+
+    y_pred_val = clf.predict(X_val)
+    y_pred_test = clf.predict(X_test)
+    print(f'Regular Baseline Model Classification Report On Validation Dataset:')
+    print(metrics.classification_report(y_val, y_pred_val, digits=4))
+
+    print(f'Regular Baseline Model Classification Report On Test Dataset:')
+    print(metrics.classification_report(y_test, y_pred_test, digits=4))
+
+    first_acc = metric_to_use(y_val, y_pred_val)
+    first_acc_test = metric_to_use(y_test, y_pred_test)
+
+    best_model = clf
+    best_model_acc = first_acc
+    best_model_acc_test = metric_to_use(y_test, y_pred_test)
+
+    should_run_on_label_1 = should_generate_data_from_both_labels or problematic_label == 1
+    should_run_on_label_0 = should_generate_data_from_both_labels or problematic_label == 0
+
+    accuracy_threshold = best_model_acc
+    print(f"Accuracy threshold: {accuracy_threshold}")
 
     for i in range(iterations):
         print(f'Starting iteration #{i+1}')
-
-        X_train = pd.get_dummies(X_train_raw, columns=cat_feats)
-
-        # Create an XGB classifier and train it on 70% of the data set.
-        clf = XGBClassifier()
-        clf.fit(X_train, y_train)
-        print("Fit XGBClassifier")
-
-        y_pred_val = clf.predict(X_val)
-        y_pred_test = clf.predict(X_test)
-        print(f'Regular Baseline Model Classification Report On Validation Dataset:')
-        print(metrics.classification_report(y_val, y_pred_val, digits=4))
-
-        print(f'Regular Baseline Model Classification Report On Test Dataset:')
-        print(metrics.classification_report(y_test, y_pred_test, digits=4))
-
-        curr_acc = metric_to_use(y_val, y_pred_val)
-        if curr_acc > best_model_acc:
-            best_model = clf
-            best_model_acc = curr_acc
-
-        should_run_on_label_1 = should_generate_data_from_both_labels or problematic_label == 1
-        should_run_on_label_0 = should_generate_data_from_both_labels or problematic_label == 0
-
-        accuracy_threshold = best_model_acc
-        print(f"Accuracy threshold: {accuracy_threshold}")
 
         if should_run_on_label_1:
             (found_prob_slice_1, samples_x_1, samples_y_1) = run_cycle_on_validation_dataset_of_label(X_val_1, y_val_1, clf, 
@@ -418,31 +423,43 @@ def main_code(config_file_name):
             y_train = y_train.append(samples_y_0)
             print("Added new samples to the train dataframe")
         
+        X_train = pd.get_dummies(X_train_raw, columns=cat_feats)
+
+        # Create an XGB classifier and train it on 70% of the data set.
+        clf = XGBClassifier()
+        clf.fit(X_train, y_train)
+        print("Fit XGBClassifier")
+
+        y_pred_val = clf.predict(X_val)
+        y_pred_test = clf.predict(X_test)
+        print(f'Regular Baseline Model Classification Report On Validation Dataset:')
+        print(metrics.classification_report(y_val, y_pred_val, digits=4))
+
+        print(f'Regular Baseline Model Classification Report On Test Dataset:')
+        print(metrics.classification_report(y_test, y_pred_test, digits=4))
+
+        curr_acc = metric_to_use(y_val, y_pred_val)
+        if curr_acc > best_model_acc:
+            best_model = clf
+            best_model_acc = curr_acc
+            best_model_acc_test = metric_to_use(y_test, y_pred_test)
+
+        should_run_on_label_1 = should_generate_data_from_both_labels or problematic_label == 1
+        should_run_on_label_0 = should_generate_data_from_both_labels or problematic_label == 0
+
+        accuracy_threshold = best_model_acc
+        print(f"Accuracy threshold: {accuracy_threshold}")
+
         print("going back...")
 
     print("Finished all iterations, printing final models results:")
 
-    X_train = pd.get_dummies(X_train_raw, columns=cat_feats)
+    last_acc = metric_to_use(y_val, y_pred_val)
+    last_acc_test = metric_to_use(y_test, y_pred_test)
 
-    # Create an XGB classifier and train it on 70% of the data set.
-    clf = XGBClassifier()
-
-    clf.fit(X_train, y_train)
-    print("Fit XGBClassifier")
-
-    y_pred_val = clf.predict(X_val)
-    y_pred_test = clf.predict(X_test)
-    print(f'Regular Baseline Model Classification Report On Validation Dataset:')
-    print(metrics.classification_report(y_val, y_pred_val, digits=4))
-
-    print(f'Regular Baseline Model Classification Report On Test Dataset:')
-    print(metrics.classification_report(y_test, y_pred_test, digits=4))
-
-    curr_acc = metric_to_use(y_val, y_pred_val)
-    if curr_acc > best_model_acc:
-        best_model = clf
-        best_model_acc = curr_acc
-
+    print(f"Validation Baseline: {first_acc} VS. Validation Last: {last_acc} VS. Validation Best: {best_model_acc}")
+    print(f"Test Baseline: {first_acc_test} VS. Test Last: {last_acc_test} VS. Test Best: {best_model_acc_test}")
+    print(f"The new model improved baseline performance by {last_acc_test - first_acc_test} ({(last_acc_test - first_acc_test)*100}%)")
     # save best model of validation to file
     pickle.dump(best_model, open("best_model.pickle.dat", "wb"))
     print("Dumped the best model into file")
